@@ -12,83 +12,111 @@
       background: #0f172a;
       color: #e2e8f0;
       padding: 32px;
-      max-width: 720px;
+      max-width: 760px;
     }
 
-    h1 { font-size: 20px; color: #10b981; margin-bottom: 24px; }
-
-    section { margin-bottom: 32px; }
-
+    h1 { font-size: 20px; color: #10b981; margin-bottom: 28px; }
+    section { margin-bottom: 36px; }
     h2 {
-      font-size: 11px;
-      text-transform: uppercase;
-      letter-spacing: .08em;
-      color: #64748b;
-      margin-bottom: 12px;
+      font-size: 11px; text-transform: uppercase; letter-spacing: .08em;
+      color: #64748b; margin-bottom: 14px; font-weight: 500;
     }
 
     label { display: block; margin-bottom: 4px; color: #94a3b8; font-size: 12px; }
-
-    input[type="url"], input[type="search"] {
-      width: 100%;
-      background: #1e293b;
-      border: 1px solid #334155;
-      border-radius: 6px;
-      color: #f1f5f9;
-      padding: 8px 12px;
-      font-size: 13px;
-      margin-bottom: 12px;
+    input[type="url"], input[type="text"], input[type="number"], input[type="search"], select {
+      width: 100%; background: #1e293b; border: 1px solid #334155;
+      border-radius: 6px; color: #f1f5f9; padding: 8px 12px;
+      font-size: 13px; margin-bottom: 8px;
     }
-    input[type="url"] { font-family: monospace; }
-    input:focus { outline: none; border-color: #10b981; }
+    input[type="url"], input[type="text"] { font-family: monospace; }
+    input[type="number"] { width: 80px; font-family: inherit; }
+    input:focus, select:focus { outline: none; border-color: #10b981; }
+    select { background-image: none; }
 
-    .hint { font-size: 11px; color: #475569; margin-top: -8px; margin-bottom: 12px; line-height: 1.5; }
+    .hint { font-size: 11px; color: #475569; margin-top: -4px; margin-bottom: 12px; line-height: 1.5; }
 
-    .btn-row { display: flex; align-items: center; gap: 8px; }
+    .btn-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 
     button {
       background: #10b981; color: #fff; border: none;
-      border-radius: 6px; padding: 8px 18px;
+      border-radius: 6px; padding: 8px 16px;
       font-size: 13px; font-weight: 600; cursor: pointer;
     }
     button:hover { background: #059669; }
-
-    #clear-btn { background: #1e293b; color: #ef4444; border: 1px solid #334155; }
-    #clear-btn:hover { background: #334155; }
+    .btn-secondary { background: #1e293b; color: #94a3b8; border: 1px solid #334155; }
+    .btn-secondary:hover { background: #334155; color: #e2e8f0; }
+    .btn-danger { background: #1e293b; color: #ef4444; border: 1px solid #334155; }
+    .btn-danger:hover { background: #334155; }
 
     #status { font-size: 12px; color: #10b981; }
 
+    /* Sources list */
+    .source-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
+
+    .source-item {
+      display: flex; align-items: center; gap: 10px;
+      background: #1e293b; border: 1px solid #334155; border-radius: 8px;
+      padding: 10px 14px;
+    }
+    .source-item.disabled { opacity: .5; }
+
+    .source-toggle { position: relative; width: 36px; height: 20px; flex-shrink: 0; }
+    .source-toggle input { opacity: 0; width: 0; height: 0; }
+    .source-toggle-slider {
+      position: absolute; inset: 0; background: #334155; border-radius: 20px; cursor: pointer; transition: .2s;
+    }
+    .source-toggle input:checked + .source-toggle-slider { background: #10b981; }
+    .source-toggle-slider::before {
+      content: ""; position: absolute; width: 14px; height: 14px; background: #fff;
+      border-radius: 50%; left: 3px; top: 3px; transition: .2s;
+    }
+    .source-toggle input:checked + .source-toggle-slider::before { transform: translateX(16px); }
+
+    .source-info { flex: 1; min-width: 0; }
+    .source-label { font-size: 13px; font-weight: 600; color: #f1f5f9; }
+    .source-url { font-size: 11px; color: #475569; font-family: monospace; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .source-last { font-size: 11px; color: #475569; margin-top: 2px; }
+
+    .source-actions { display: flex; gap: 6px; flex-shrink: 0; }
+    .btn-icon {
+      background: none; border: none; color: #475569; cursor: pointer; font-size: 14px; padding: 4px;
+    }
+    .btn-icon:hover { color: #94a3b8; }
+    .btn-refresh { color: #10b981; }
+    .btn-refresh:hover { color: #059669; }
+
+    /* Add source form */
+    .add-form {
+      background: #1e293b; border: 1px solid #334155; border-radius: 8px;
+      padding: 16px; margin-bottom: 8px;
+    }
+    .add-form-grid { display: grid; grid-template-columns: 1fr 140px; gap: 8px; margin-bottom: 8px; }
+    .add-form-grid input { margin-bottom: 0; }
+
+    /* Refresh settings */
+    .interval-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .interval-row input[type="number"] { margin-bottom: 0; }
+    .interval-row label { margin-bottom: 0; white-space: nowrap; }
+
+    /* Voucher table */
     #voucher-meta { font-size: 12px; color: #475569; margin-bottom: 12px; }
 
-    .voucher-table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 13px;
-    }
+    .voucher-table { width: 100%; border-collapse: collapse; font-size: 13px; }
     .voucher-table th {
-      text-align: left;
-      padding: 6px 10px;
-      color: #475569;
-      border-bottom: 1px solid #1e293b;
-      font-weight: 500;
-      font-size: 11px;
-      text-transform: uppercase;
-      letter-spacing: .06em;
+      text-align: left; padding: 6px 10px; color: #475569;
+      border-bottom: 1px solid #1e293b; font-weight: 500;
+      font-size: 11px; text-transform: uppercase; letter-spacing: .06em;
     }
-    .voucher-table td {
-      padding: 8px 10px;
-      border-bottom: 1px solid #1e293b;
-      vertical-align: middle;
-    }
+    .voucher-table td { padding: 8px 10px; border-bottom: 1px solid #1e293b; vertical-align: middle; }
     .voucher-table tr:last-child td { border-bottom: none; }
     .voucher-table tr:hover td { background: #1e293b; }
     .voucher-table tr[hidden] { display: none; }
 
     .provider-cell { color: #f1f5f9; font-weight: 600; }
     .domain-cell { color: #475569; font-family: monospace; font-size: 12px; }
-    .code-cell { font-family: monospace; font-size: 12px; color: #10b981; }
+    .code-cell { font-family: monospace; font-size: 12px; color: #10b981; cursor: pointer; }
     .nocode-cell { font-size: 11px; color: #334155; font-style: italic; }
-
+    .source-cell { font-size: 11px; color: #475569; }
     .no-vouchers { color: #475569; font-size: 13px; }
   </style>
 </head>
@@ -96,19 +124,45 @@
   <h1>CouponAlert Settings</h1>
 
   <section>
-    <h2>Source Page</h2>
-    <label for="source-url">URL of the voucher source page</label>
-    <input type="url" id="source-url" placeholder="https://example.com/vouchers">
-    <p class="hint">
-      Visit this page while the extension is active — it will automatically detect
-      all providers, their websites, discounts, and codes across all sub-pages.
-    </p>
+    <h2>Voucher Sources</h2>
+    <div id="source-list" class="source-list"></div>
+
+    <div id="add-form" class="add-form" style="display:none">
+      <div class="add-form-grid">
+        <div>
+          <label>URL</label>
+          <input type="url" id="add-url" placeholder="https://example.com/vouchers">
+        </div>
+        <div>
+          <label>Label</label>
+          <input type="text" id="add-label" placeholder="My Portal">
+        </div>
+      </div>
+      <div class="btn-row">
+        <button id="add-confirm-btn">Add Source</button>
+        <button class="btn-secondary" id="add-cancel-btn">Cancel</button>
+      </div>
+    </div>
+
     <div class="btn-row">
-      <button id="save-btn">Save</button>
-      <button id="clear-btn">Clear Vouchers</button>
-      <button id="rescan-btn">Force Rescan</button>
+      <button class="btn-secondary" id="add-btn">+ Add Source</button>
+      <button class="btn-danger" id="clear-btn">Clear All Vouchers</button>
       <span id="status"></span>
     </div>
+  </section>
+
+  <section>
+    <h2>Auto-Refresh</h2>
+    <div class="interval-row">
+      <label>Refresh every</label>
+      <input type="number" id="interval-hours" min="1" max="168" value="24">
+      <label>hours</label>
+      <button id="save-interval-btn">Save</button>
+    </div>
+    <p class="hint" style="margin-top:10px">
+      The extension refreshes all enabled sources in the background. If a source requires login,
+      make sure you're logged in at least once so the browser has valid session cookies.
+    </p>
   </section>
 
   <section>

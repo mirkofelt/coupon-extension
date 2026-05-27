@@ -234,43 +234,55 @@
 
   // --- Source extraction ---
 
-  async function runMaoExtraction() {
-    const { lastMaoScrape, maoScraping, maoScrapingStarted } = await chrome.storage.local.get(["lastMaoScrape", "maoScraping", "maoScrapingStarted"]);
+  async function runMaoExtraction(sourceUrl) {
+    const lockKey = `maoScraping_${btoa(sourceUrl).slice(0, 12)}`;
+    const startKey = lockKey + "_ts";
+    const cooldownKey = `lastMaoScrape_${btoa(sourceUrl).slice(0, 12)}`;
 
-    if (maoScraping && maoScrapingStarted && Date.now() - maoScrapingStarted > 10 * 60 * 1000) {
-      await chrome.storage.local.remove(["maoScraping", "maoScrapingStarted"]);
-    } else if (maoScraping) {
+    const stored = await chrome.storage.local.get([lockKey, startKey, cooldownKey]);
+
+    if (stored[lockKey] && stored[startKey] && Date.now() - stored[startKey] > 10 * 60 * 1000) {
+      await chrome.storage.local.remove([lockKey, startKey]);
+    } else if (stored[lockKey]) {
       setBanner("Scan läuft bereits…", true);
       return;
     }
 
-    if (lastMaoScrape && Date.now() - lastMaoScrape < SCRAPE_COOLDOWN_MS) {
+    if (stored[cooldownKey] && Date.now() - stored[cooldownKey] < SCRAPE_COOLDOWN_MS) {
       setBanner("Vouchers sind aktuell ✓", true);
       return;
     }
 
-    await chrome.storage.local.set({ maoScraping: true, maoScrapingStarted: Date.now() });
+    await chrome.storage.local.set({ [lockKey]: true, [startKey]: Date.now() });
 
     try {
-      const vouchers = await extractMaoVouchers();
-      if (vouchers.length > 0) {
-        await chrome.storage.local.set({ vouchers, lastMaoScrape: Date.now() });
-        chrome.runtime.sendMessage({ type: "VOUCHERS_UPDATED", count: vouchers.length });
-        setBanner(`${vouchers.length} Anbieter importiert ✓`, true);
+      const freshVouchers = await extractMaoVouchers();
+      if (freshVouchers.length > 0) {
+        const tagged = freshVouchers.map((v) => ({ ...v, sourceUrl }));
+        const { vouchers: existing } = await chrome.storage.local.get("vouchers");
+        const kept = (existing ?? []).filter((v) => v.sourceUrl !== sourceUrl);
+        const updated = [...kept, ...tagged];
+        await chrome.storage.local.set({ vouchers: updated, [cooldownKey]: Date.now() });
+        chrome.runtime.sendMessage({ type: "VOUCHERS_UPDATED", count: updated.length });
+        setBanner(`${tagged.length} Anbieter importiert ✓`, true);
       } else {
         setBanner("Keine Angebote gefunden", true);
       }
     } finally {
-      await chrome.storage.local.remove(["maoScraping", "maoScrapingStarted"]);
+      await chrome.storage.local.remove([lockKey, startKey]);
     }
   }
 
-  async function runGenericExtraction() {
-    const vouchers = genericExtract();
-    if (vouchers.length === 0) return;
-    await chrome.storage.local.set({ vouchers });
-    chrome.runtime.sendMessage({ type: "VOUCHERS_UPDATED", count: vouchers.length });
-    setBanner(`${vouchers.length} Anbieter importiert ✓`, true);
+  async function runGenericExtraction(sourceUrl) {
+    const freshVouchers = genericExtract();
+    if (freshVouchers.length === 0) return;
+    const tagged = freshVouchers.map((v) => ({ ...v, sourceUrl }));
+    const { vouchers: existing } = await chrome.storage.local.get("vouchers");
+    const kept = (existing ?? []).filter((v) => v.sourceUrl !== sourceUrl);
+    const updated = [...kept, ...tagged];
+    await chrome.storage.local.set({ vouchers: updated });
+    chrome.runtime.sendMessage({ type: "VOUCHERS_UPDATED", count: updated.length });
+    setBanner(`${tagged.length} Anbieter importiert ✓`, true);
   }
 
   // --- Badge injection ---
@@ -348,16 +360,25 @@
   // --- Main ---
 
   async function main() {
-    // On any MAO page: run full category crawl
-    if (isOnMaoSite()) {
-      runMaoExtraction();
+    const { sources } = await chrome.storage.sync.get("sources");
+    const enabledSources = (sources ?? []).filter((s) => s.enabled);
+
+    // Check if current page is a configured source
+    for (const source of enabledSources) {
+      if (!location.href.startsWith(source.url.replace(/\/$/, "").split("?")[0])) continue;
+      if (source.type === "mao" || location.hostname.endsWith(MAO_HOSTNAME)) {
+        runMaoExtraction(source.url);
+      } else {
+        runGenericExtraction(source.url);
+      }
       return;
     }
 
-    // Generic configured source page
-    const { sourceUrl } = await chrome.storage.sync.get("sourceUrl");
-    if (sourceUrl && location.href.startsWith(sourceUrl)) {
-      runGenericExtraction();
+    // MAO site not explicitly in sources but user is on it
+    if (isOnMaoSite()) {
+      const maoSource = enabledSources.find((s) => s.url.includes(MAO_HOSTNAME))
+        ?? { url: location.origin + "/" };
+      runMaoExtraction(maoSource.url);
       return;
     }
 
