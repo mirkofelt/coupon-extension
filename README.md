@@ -16,18 +16,24 @@ A browser extension that automatically extracts discount vouchers from a configu
 
 1. Open `chrome://extensions`
 2. Enable **Developer mode** (top right)
-3. Click **Load unpacked** → select this directory
+3. Click **Load unpacked** → select the `extension/` folder
 4. Open the extension options and configure the source URL and CSS selectors
 
 ### Safari (macOS)
 
-Requires Xcode. Run once on a Mac:
+Requires the full **Xcode** app (not just Command Line Tools). If you get `unable to find utility "safari-web-extension-converter"`, run this first:
 
 ```bash
-xcrun safari-web-extension-converter /path/to/coupon-extension --project-location ~/Desktop
+sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
 ```
 
-Then open the generated Xcode project, build and run it, and enable the extension in Safari Settings → Extensions.
+Then convert and build once:
+
+```bash
+xcrun safari-web-extension-converter /path/to/coupon-extension/extension --project-location ~/Desktop
+```
+
+Open the generated Xcode project, build and run it, then enable the extension in Safari Settings → Extensions.
 
 ## Configuration
 
