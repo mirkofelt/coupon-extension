@@ -294,24 +294,21 @@
 
   async function runMaoExtraction(sourceUrl) {
     const lockKey = `maoScraping_${btoa(sourceUrl).slice(0, 12)}`;
-    const startKey = lockKey + "_ts";
     const cooldownKey = `lastMaoScrape_${btoa(sourceUrl).slice(0, 12)}`;
 
-    const stored = await chrome.storage.local.get([lockKey, startKey, cooldownKey]);
-
-    if (stored[lockKey] && stored[startKey] && Date.now() - stored[startKey] > 2 * 60 * 1000) {
-      await chrome.storage.local.remove([lockKey, startKey]);
-    } else if (stored[lockKey]) {
+    // sessionStorage is tab-scoped and clears on navigation — no stale locks after redirects
+    if (sessionStorage.getItem(lockKey)) {
       setBanner("Scan läuft bereits…", true);
       return;
     }
 
-    if (stored[cooldownKey] && Date.now() - stored[cooldownKey] < SCRAPE_COOLDOWN_MS) {
+    const { [cooldownKey]: lastScrape } = await chrome.storage.local.get(cooldownKey);
+    if (lastScrape && Date.now() - lastScrape < SCRAPE_COOLDOWN_MS) {
       setBanner("Vouchers sind aktuell ✓", true);
       return;
     }
 
-    await chrome.storage.local.set({ [lockKey]: true, [startKey]: Date.now() });
+    sessionStorage.setItem(lockKey, "1");
 
     try {
       const freshVouchers = await extractMaoVouchers();
@@ -341,7 +338,7 @@
         setBanner("Fehler beim Laden ✗", true);
       }
     } finally {
-      await chrome.storage.local.remove([lockKey, startKey]);
+      sessionStorage.removeItem(lockKey);
     }
   }
 
