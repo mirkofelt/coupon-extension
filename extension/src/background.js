@@ -104,14 +104,23 @@ async function refreshSource(source) {
 
 // --- MAO scraper ---
 
-async function fetchDoc(url) {
-  try {
-    const res = await fetch(url, { credentials: "include" });
-    if (!res.ok) return null;
-    return new DOMParser().parseFromString(await res.text(), "text/html");
-  } catch {
-    return null;
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+async function fetchDoc(url, retries = 2) {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const res = await fetch(url, { credentials: "include" });
+      if (res.status === 429) {
+        if (attempt < retries) { await sleep(3000 * (attempt + 1)); continue; }
+        return null;
+      }
+      if (!res.ok) return null;
+      return new DOMParser().parseFromString(await res.text(), "text/html");
+    } catch {
+      return null;
+    }
   }
+  return null;
 }
 
 function extractListItems(doc, origin) {
@@ -150,8 +159,9 @@ async function scrapeMao(sourceUrl) {
   });
 
   const vouchers = [];
-  const BATCH = 5;
+  const BATCH = 3;
   for (let i = 0; i < offers.length; i += BATCH) {
+    if (i > 0) await sleep(400);
     const results = await Promise.all(
       offers.slice(i, i + BATCH).map(async (offer) => {
         const doc = await fetchDoc(origin + offer.offerPath);

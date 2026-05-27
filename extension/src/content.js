@@ -33,15 +33,24 @@
     return isOnMaoSite() && document.querySelector(".cbg3-global-banner") !== null;
   }
 
-  async function fetchDoc(urlOrPath) {
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+  async function fetchDoc(urlOrPath, retries = 2) {
     const url = urlOrPath.startsWith("http") ? urlOrPath : location.origin + urlOrPath;
-    try {
-      const res = await fetch(url, { credentials: "include" });
-      if (!res.ok) return null;
-      return new DOMParser().parseFromString(await res.text(), "text/html");
-    } catch {
-      return null;
+    for (let attempt = 0; attempt <= retries; attempt++) {
+      try {
+        const res = await fetch(url, { credentials: "include" });
+        if (res.status === 429) {
+          if (attempt < retries) { await sleep(3000 * (attempt + 1)); continue; }
+          return null;
+        }
+        if (!res.ok) return null;
+        return new DOMParser().parseFromString(await res.text(), "text/html");
+      } catch {
+        return null;
+      }
     }
+    return null;
   }
 
   async function fetchCouponCode(ac, offerId, saleOptionId) {
@@ -131,9 +140,10 @@
 
     const vouchers = [];
     const total = offers.length;
-    const BATCH = 5;
+    const BATCH = 3;
 
     for (let i = 0; i < offers.length; i += BATCH) {
+      if (i > 0) await sleep(400);
       setBanner(`Lade Details… (${Math.min(i + BATCH, total)}/${total})`);
       const results = await Promise.all(
         offers.slice(i, i + BATCH).map(async (offer) => {
