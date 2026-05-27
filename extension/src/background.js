@@ -157,6 +157,13 @@ async function scrapeMao(sourceUrl) {
     seenPaths.add(o.offerPath);
     return true;
   });
+  const seenProviders = new Set();
+  offers = offers.filter((o) => {
+    const key = o.provider?.toLowerCase().replace(/\s+/g, "") ?? o.offerPath;
+    if (seenProviders.has(key)) return false;
+    seenProviders.add(key);
+    return true;
+  });
 
   const vouchers = [];
   const BATCH = 3;

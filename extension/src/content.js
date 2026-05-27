@@ -130,11 +130,18 @@
       offers = offers.concat(extractListItemsFromDoc(doc));
     }
 
-    // Deduplicate by offerPath
+    // Deduplicate: first by offerPath, then by normalized provider name
     const seenPaths = new Set();
     offers = offers.filter((o) => {
       if (seenPaths.has(o.offerPath)) return false;
       seenPaths.add(o.offerPath);
+      return true;
+    });
+    const seenProviders = new Set();
+    offers = offers.filter((o) => {
+      const key = o.provider?.toLowerCase().replace(/\s+/g, "") ?? o.offerPath;
+      if (seenProviders.has(key)) return false;
+      seenProviders.add(key);
       return true;
     });
 
