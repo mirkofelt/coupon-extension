@@ -125,6 +125,23 @@
     #pagination button { padding: 6px 14px; font-size: 12px; font-weight: 500; }
     .page-info { font-size: 12px; color: #475569; }
 
+    /* Hover tooltip */
+    #voucher-tooltip {
+      position: fixed; z-index: 9999; display: none;
+      background: #1e293b; border: 1px solid #334155; border-radius: 8px;
+      padding: 12px 14px; max-width: 340px; min-width: 180px;
+      box-shadow: 0 8px 24px rgba(0,0,0,.5); pointer-events: none;
+      font-size: 12px; line-height: 1.5;
+    }
+    #voucher-tooltip.visible { display: block; }
+    .tip-discount { margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid #334155; }
+    .tip-discount:last-of-type { margin-bottom: 0; padding-bottom: 0; border-bottom: none; }
+    .tip-text { color: #f1f5f9; }
+    .tip-code { font-family: monospace; color: #10b981; font-size: 13px; font-weight: 600; }
+    .tip-cond { color: #64748b; font-size: 11px; margin-top: 2px; }
+    .tip-footer { color: #334155; font-size: 10px; margin-top: 8px; }
+    .voucher-table tbody tr:hover td { background: #243144; cursor: default; }
+
     /* Blocked keywords */
     textarea {
       width: 100%; background: #1e293b; border: 1px solid #334155;
@@ -196,6 +213,7 @@
     <div id="voucher-list"></div>
   </section>
 
+  <div id="voucher-tooltip"></div>
   <script src="src/options.js"></script>
 </body>
 </html>

@@ -295,6 +295,9 @@ function renderPage() {
     }
 
     tr.append(tdName, tdDomain, tdCode, tdSource);
+    tr.addEventListener("mouseenter", (e) => showTooltip(e, v));
+    tr.addEventListener("mousemove", moveTooltip);
+    tr.addEventListener("mouseleave", hideTooltip);
     tbody.appendChild(tr);
   }
 
@@ -328,6 +331,37 @@ function renderPagination(total, totalPages) {
 
   el.append(prev, info, next);
 }
+
+// --- Tooltip ---
+
+const tooltip = document.getElementById("voucher-tooltip");
+
+function showTooltip(e, v) {
+  const parts = (v.discounts ?? []).map((d) => {
+    let html = `<div class="tip-discount"><div class="tip-text">${escHtml(d.text)}</div>`;
+    if (d.code) html += `<div class="tip-code">${escHtml(d.code)}</div>`;
+    if (d.conditions) html += `<div class="tip-cond">${escHtml(d.conditions)}</div>`;
+    return html + `</div>`;
+  });
+  if (!parts.length) parts.push(`<div class="tip-text" style="color:#475569">No discount details</div>`);
+  if (v.extractedAt) parts.push(`<div class="tip-footer">Scraped ${new Date(v.extractedAt).toLocaleString()}</div>`);
+  tooltip.innerHTML = parts.join("");
+  tooltip.classList.add("visible");
+  moveTooltip(e);
+}
+
+function moveTooltip(e) {
+  const pad = 14;
+  tooltip.style.left = "0";
+  tooltip.style.top = "0";
+  const tw = tooltip.offsetWidth, th = tooltip.offsetHeight;
+  const x = e.clientX + pad + tw > window.innerWidth ? e.clientX - tw - pad : e.clientX + pad;
+  const y = e.clientY + pad + th > window.innerHeight ? e.clientY - th - pad : e.clientY + pad;
+  tooltip.style.left = x + "px";
+  tooltip.style.top = y + "px";
+}
+
+function hideTooltip() { tooltip.classList.remove("visible"); }
 
 // --- Helpers ---
 
