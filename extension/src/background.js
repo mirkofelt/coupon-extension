@@ -49,6 +49,15 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     refreshSource(msg.source).then(() => sendResponse({ ok: true }));
     return true;
   }
+  if (msg.type === "SOURCE_ERROR") {
+    chrome.storage.sync.get("sources").then(({ sources }) => {
+      if (!sources) return;
+      const updated = sources.map((s) =>
+        s.url === msg.sourceUrl ? { ...s, lastError: msg.reason, lastErrorAt: Date.now() } : s
+      );
+      chrome.storage.sync.set({ sources: updated });
+    });
+  }
 });
 
 // --- Background refresh ---
@@ -71,18 +80,28 @@ async function refreshSource(source) {
   chrome.action.setBadgeBackgroundColor({ color: "#f59e0b" });
 
   let newVouchers = [];
+  let scrapeError = null;
   try {
     if (source.url.includes(MAO_HOSTNAME)) {
       newVouchers = await scrapeMao(source.url);
     } else {
       newVouchers = await scrapeGeneric(source.url);
     }
-  } catch {}
+  } catch (err) {
+    scrapeError = err.reason ?? "unknown";
+  }
 
   chrome.action.setBadgeText({ text: "" });
   chrome.action.setBadgeBackgroundColor({ color: "#10b981" });
 
-  if (newVouchers.length === 0) return;
+  if (scrapeError || newVouchers.length === 0) {
+    chrome.runtime.sendMessage({
+      type: "SOURCE_ERROR",
+      sourceUrl: source.url,
+      reason: scrapeError ?? "no_results",
+    }).catch(() => {});
+    return;
+  }
 
   const tagged = newVouchers.map((v) => ({ ...v, sourceUrl: source.url }));
   const { vouchers: existing } = await chrome.storage.local.get("vouchers");
@@ -137,7 +156,7 @@ function extractListItems(doc, origin) {
 async function scrapeMao(sourceUrl) {
   const origin = new URL(sourceUrl).origin;
   const homeDoc = await fetchDoc(origin + "/");
-  if (!homeDoc) return [];
+  if (!homeDoc) throw Object.assign(new Error(), { reason: "network" });
 
   const seen = new Set();
   const overviewUrls = Array.from(homeDoc.querySelectorAll("a[href^='/overview/']"))
@@ -145,11 +164,15 @@ async function scrapeMao(sourceUrl) {
     .filter((h) => h && !h.includes("#") && !seen.has(h) && seen.add(h))
     .map((h) => origin + h);
 
+  if (overviewUrls.length === 0) throw Object.assign(new Error(), { reason: "not_logged_in" });
+
   let offers = [];
   for (const url of overviewUrls) {
     const doc = await fetchDoc(url);
     if (doc) offers = offers.concat(extractListItems(doc, origin));
   }
+
+  if (offers.length === 0) throw Object.assign(new Error(), { reason: "no_items" });
 
   const seenPaths = new Set();
   offers = offers.filter((o) => {

@@ -26,9 +26,21 @@ function renderSources(sources) {
     const item = document.createElement("div");
     item.className = "source-item" + (source.enabled ? "" : " disabled");
 
-    const lastStr = source.lastRefreshed
-      ? `Last synced ${new Date(source.lastRefreshed).toLocaleString()}`
-      : "Never synced";
+    const ERROR_LABELS = {
+      not_logged_in: "⚠ Not logged in",
+      no_items: "⚠ No items found (site structure changed?)",
+      network: "⚠ Network error",
+      no_results: "⚠ No results",
+      unknown: "⚠ Unknown error",
+    };
+    let lastStr;
+    if (source.lastError && source.lastErrorAt) {
+      lastStr = `${ERROR_LABELS[source.lastError] ?? "⚠ Error"} · ${new Date(source.lastErrorAt).toLocaleString()}`;
+    } else if (source.lastRefreshed) {
+      lastStr = `Last synced ${new Date(source.lastRefreshed).toLocaleString()}`;
+    } else {
+      lastStr = "Never synced";
+    }
 
     item.innerHTML = `
       <label class="source-toggle">
@@ -38,7 +50,7 @@ function renderSources(sources) {
       <div class="source-info">
         <div class="source-label">${escHtml(source.label)}</div>
         <div class="source-url">${escHtml(source.url)}</div>
-        <div class="source-last">${lastStr}</div>
+        <div class="source-last${source.lastError ? " source-error" : ""}">${lastStr}</div>
       </div>
       <div class="source-actions">
         <button class="btn-icon btn-refresh" title="Refresh now" data-refresh="${source.id}">↻</button>

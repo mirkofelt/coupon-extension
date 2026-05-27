@@ -109,18 +109,19 @@
     }).filter((o) => o.provider && o.offerPath);
   }
 
-  async function discoverOverviewUrls() {
-    const doc = await fetchDoc("/");
-    if (!doc) return [];
-    const seen = new Set();
-    return Array.from(doc.querySelectorAll("a[href^='/overview/']"))
-      .map((a) => a.getAttribute("href"))
-      .filter((h) => h && !h.includes("#") && !seen.has(h) && seen.add(h));
-  }
-
   async function extractMaoVouchers() {
     setBanner("Erkunde Kategorien…");
-    const overviewUrls = await discoverOverviewUrls();
+    const homeDoc = await fetchDoc("/");
+    if (!homeDoc) throw Object.assign(new Error(), { reason: "network" });
+
+    const overviewUrls = (() => {
+      const seen = new Set();
+      return Array.from(homeDoc.querySelectorAll("a[href^='/overview/']"))
+        .map((a) => a.getAttribute("href"))
+        .filter((h) => h && !h.includes("#") && !seen.has(h) && seen.add(h));
+    })();
+
+    if (overviewUrls.length === 0) throw Object.assign(new Error(), { reason: "not_logged_in" });
 
     let offers = [];
     for (let i = 0; i < overviewUrls.length; i++) {
@@ -129,6 +130,8 @@
       if (!doc) continue;
       offers = offers.concat(extractListItemsFromDoc(doc));
     }
+
+    if (offers.length === 0) throw Object.assign(new Error(), { reason: "no_items" });
 
     // Deduplicate: first by offerPath, then by normalized provider name
     const seenPaths = new Set();
@@ -291,7 +294,17 @@
         chrome.runtime.sendMessage({ type: "VOUCHERS_UPDATED", count: updated.length });
         setBanner(`${tagged.length} Anbieter importiert ✓`, true);
       } else {
-        setBanner("Keine Angebote gefunden", true);
+        setBanner("Keine Codes gefunden (Angebote ohne Gutschein?)", true);
+      }
+    } catch (err) {
+      if (err.reason === "not_logged_in") {
+        setBanner("Nicht eingeloggt – bitte erst anmelden ✗", true);
+      } else if (err.reason === "no_items") {
+        setBanner("Keine Angebote – Seitenstruktur geändert? ✗", true);
+      } else if (err.reason === "network") {
+        setBanner("Verbindungsfehler ✗", true);
+      } else {
+        setBanner("Fehler beim Laden ✗", true);
       }
     } finally {
       await chrome.storage.local.remove([lockKey, startKey]);
