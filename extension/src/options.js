@@ -100,11 +100,18 @@ document.getElementById("save-btn").addEventListener("click", async () => {
 });
 
 document.getElementById("clear-btn").addEventListener("click", async () => {
-  await chrome.storage.local.remove("vouchers");
+  await chrome.storage.local.remove(["vouchers", "lastMaoScrape", "maoScraping"]);
   renderVoucherList();
   const status = document.getElementById("status");
   status.textContent = "Cleared";
   setTimeout(() => (status.textContent = ""), 2500);
+});
+
+document.getElementById("rescan-btn").addEventListener("click", async () => {
+  await chrome.storage.local.remove(["lastMaoScrape", "maoScraping"]);
+  const status = document.getElementById("status");
+  status.textContent = "Cooldown reset — visit source page to rescan";
+  setTimeout(() => (status.textContent = ""), 4000);
 });
 
 load();

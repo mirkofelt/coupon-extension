@@ -1,7 +1,31 @@
 (() => {
   const BADGE_CLASS = "coupon-alert-badge";
   const MAO_HOSTNAME = "mitarbeiterangebote.de";
-  const SCRAPE_COOLDOWN_MS = 30 * 60 * 1000; // 30 min
+  const SCRAPE_COOLDOWN_MS = 30 * 60 * 1000;
+
+  // --- Progress banner ---
+
+  function createBanner() {
+    if (document.getElementById("coupon-alert-banner")) return;
+    const el = document.createElement("div");
+    el.id = "coupon-alert-banner";
+    el.style.cssText = `
+      position:fixed;top:16px;right:16px;z-index:2147483647;
+      background:#1a1a2e;color:#e2e8f0;padding:10px 16px;border-radius:8px;
+      font-family:sans-serif;font-size:13px;box-shadow:0 4px 12px rgba(0,0,0,.3);
+      border-left:4px solid #10b981;min-width:220px;
+    `;
+    document.body.appendChild(el);
+  }
+
+  function setBanner(text, done = false) {
+    let el = document.getElementById("coupon-alert-banner");
+    if (!el) { createBanner(); el = document.getElementById("coupon-alert-banner"); }
+    if (!el) return;
+    el.textContent = `CouponAlert: ${text}`;
+    el.style.borderLeftColor = done ? "#10b981" : "#f59e0b";
+    if (done) setTimeout(() => el?.remove(), 4000);
+  }
 
   // --- Site-specific: mitarbeiterangebote.de ---
 
@@ -73,25 +97,30 @@
     })).filter((o) => o.provider && o.offerPath);
   }
 
-  function detectMaxPageFromDoc(doc, baseHostname) {
+  function detectMaxPageFromDoc(doc, hostname) {
     const nums = Array.from(doc.querySelectorAll("a[href]"))
       .map((a) => { try { return new URL(a.href); } catch { return null; } })
-      .filter((u) => u && u.hostname === baseHostname)
+      .filter((u) => u && u.hostname === hostname)
       .map((u) => parseInt(u.searchParams.get("page") ?? "0") || parseInt((u.pathname.match(/\/page\/(\d+)/) ?? [])[1] ?? "0"))
       .filter((n) => n > 0);
     return nums.length > 0 ? Math.max(...nums) : 1;
   }
 
   async function extractMaoVouchers() {
-    // Fetch the root listing page regardless of which page we're currently on
+    setBanner("Lade Angebotsseite…");
+
     const listingUrl = location.origin + "/";
     const rootDoc = await fetchDoc(listingUrl);
-    if (!rootDoc?.querySelector(".cbg3-global-banner[data-id]")) return [];
+    if (!rootDoc?.querySelector(".cbg3-global-banner[data-id]")) {
+      setBanner("Keine Angebote gefunden — bitte erst einloggen", true);
+      return [];
+    }
 
     let offers = extractOffersFromDoc(rootDoc);
     const maxPage = detectMaxPageFromDoc(rootDoc, location.hostname);
 
     for (let p = 2; p <= maxPage; p++) {
+      setBanner(`Scanne Seite ${p}/${maxPage}…`);
       const doc = await fetchDoc(`${listingUrl}?page=${p}`);
       if (!doc) continue;
       offers = offers.concat(extractOffersFromDoc(doc));
@@ -106,9 +135,12 @@
     });
 
     const vouchers = [];
+    const total = offers.length;
     const BATCH = 5;
 
     for (let i = 0; i < offers.length; i += BATCH) {
+      setBanner(`Lade Angebots-Details… (${Math.min(i + BATCH, total)}/${total})`);
+
       const results = await Promise.all(
         offers.slice(i, i + BATCH).map(async (offer) => {
           const doc = await fetchDoc(offer.offerPath);
@@ -204,42 +236,33 @@
   // --- Source extraction ---
 
   async function runMaoExtraction() {
-    // Cooldown: skip if scraped recently
-    const { lastMaoScrape } = await chrome.storage.local.get("lastMaoScrape");
+    const { lastMaoScrape, maoScraping } = await chrome.storage.local.get(["lastMaoScrape", "maoScraping"]);
+
+    // Skip if another tab is already scraping
+    if (maoScraping) return;
+    // Skip if scraped recently
     if (lastMaoScrape && Date.now() - lastMaoScrape < SCRAPE_COOLDOWN_MS) return;
 
-    await chrome.storage.local.set({ lastMaoScrape: Date.now() });
+    await chrome.storage.local.set({ maoScraping: true });
 
-    const vouchers = await extractMaoVouchers();
-    if (vouchers.length === 0) return;
-
-    await chrome.storage.local.set({ vouchers });
-    chrome.runtime.sendMessage({ type: "VOUCHERS_UPDATED", count: vouchers.length });
-    showSourceBanner(vouchers.length);
+    try {
+      const vouchers = await extractMaoVouchers();
+      if (vouchers.length > 0) {
+        await chrome.storage.local.set({ vouchers, lastMaoScrape: Date.now() });
+        chrome.runtime.sendMessage({ type: "VOUCHERS_UPDATED", count: vouchers.length });
+        setBanner(`${vouchers.length} Anbieter importiert ✓`, true);
+      }
+    } finally {
+      await chrome.storage.local.remove("maoScraping");
+    }
   }
 
   async function runGenericExtraction() {
     const vouchers = genericExtract();
     if (vouchers.length === 0) return;
-
     await chrome.storage.local.set({ vouchers });
     chrome.runtime.sendMessage({ type: "VOUCHERS_UPDATED", count: vouchers.length });
-    showSourceBanner(vouchers.length);
-  }
-
-  function showSourceBanner(count) {
-    if (document.getElementById("coupon-alert-source-banner")) return;
-    const banner = document.createElement("div");
-    banner.id = "coupon-alert-source-banner";
-    banner.style.cssText = `
-      position:fixed;top:16px;right:16px;z-index:2147483647;
-      background:#1a1a2e;color:#fff;padding:10px 16px;border-radius:8px;
-      font-family:sans-serif;font-size:13px;box-shadow:0 4px 12px rgba(0,0,0,.3);
-      border-left:4px solid #10b981;
-    `;
-    banner.textContent = `CouponAlert: ${count} Anbieter importiert`;
-    document.body.appendChild(banner);
-    setTimeout(() => banner.remove(), 4000);
+    setBanner(`${vouchers.length} Anbieter importiert ✓`, true);
   }
 
   // --- Badge injection on comparison/shopping pages ---
@@ -317,7 +340,6 @@
   // --- Main ---
 
   async function main() {
-    // On any MAO page: trigger background scrape (with cooldown)
     if (isOnMaoSite()) {
       runMaoExtraction();
       return;
