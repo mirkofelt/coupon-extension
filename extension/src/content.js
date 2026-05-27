@@ -35,6 +35,24 @@
 
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+  let _httpErrors = { rateLimit: 0, other: {} };
+
+  function _resetHttpErrors() { _httpErrors = { rateLimit: 0, other: {} }; }
+
+  function _checkHttpErrors() {
+    if (_httpErrors.rateLimit > 0) {
+      throw Object.assign(new Error(), { reason: "rate_limited", count: _httpErrors.rateLimit });
+    }
+    const firstStatus = Object.keys(_httpErrors.other)[0];
+    if (firstStatus) {
+      throw Object.assign(new Error(), {
+        reason: "http_error",
+        status: parseInt(firstStatus),
+        count: _httpErrors.other[firstStatus],
+      });
+    }
+  }
+
   async function fetchDoc(urlOrPath, retries = 2) {
     const url = urlOrPath.startsWith("http") ? urlOrPath : location.origin + urlOrPath;
     for (let attempt = 0; attempt <= retries; attempt++) {
@@ -42,9 +60,13 @@
         const res = await fetch(url, { credentials: "include" });
         if (res.status === 429) {
           if (attempt < retries) { await sleep(3000 * (attempt + 1)); continue; }
+          _httpErrors.rateLimit++;
           return null;
         }
-        if (!res.ok) return null;
+        if (!res.ok) {
+          _httpErrors.other[res.status] = (_httpErrors.other[res.status] ?? 0) + 1;
+          return null;
+        }
         return new DOMParser().parseFromString(await res.text(), "text/html");
       } catch {
         return null;
@@ -110,6 +132,7 @@
   }
 
   async function extractMaoVouchers() {
+    _resetHttpErrors();
     setBanner("Erkunde Kategorien…");
     const homeDoc = await fetchDoc("/");
     if (!homeDoc) throw Object.assign(new Error(), { reason: "network" });
@@ -202,6 +225,7 @@
       }
     }
 
+    _checkHttpErrors();
     return vouchers;
   }
 
@@ -303,6 +327,10 @@
         setBanner("Keine Angebote – Seitenstruktur geändert? ✗", true);
       } else if (err.reason === "network") {
         setBanner("Verbindungsfehler ✗", true);
+      } else if (err.reason === "rate_limited") {
+        setBanner(`Rate Limit (429 ×${err.count}) – bitte später nochmal ✗`, true);
+      } else if (err.reason === "http_error") {
+        setBanner(`HTTP ${err.status} ×${err.count} ✗`, true);
       } else {
         setBanner("Fehler beim Laden ✗", true);
       }

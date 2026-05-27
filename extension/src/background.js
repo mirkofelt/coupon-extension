@@ -89,6 +89,8 @@ async function refreshSource(source) {
     }
   } catch (err) {
     scrapeError = err.reason ?? "unknown";
+    if (err.reason === "rate_limited") scrapeError = `rate_limited_${err.count}`;
+    else if (err.reason === "http_error") scrapeError = `http_${err.status}_${err.count}`;
   }
 
   chrome.action.setBadgeText({ text: "" });
@@ -125,15 +127,29 @@ async function refreshSource(source) {
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+let _httpErrors = { rateLimit: 0, other: {} };
+function _resetHttpErrors() { _httpErrors = { rateLimit: 0, other: {} }; }
+function _checkHttpErrors() {
+  if (_httpErrors.rateLimit > 0)
+    throw Object.assign(new Error(), { reason: "rate_limited", count: _httpErrors.rateLimit });
+  const firstStatus = Object.keys(_httpErrors.other)[0];
+  if (firstStatus)
+    throw Object.assign(new Error(), { reason: "http_error", status: parseInt(firstStatus), count: _httpErrors.other[firstStatus] });
+}
+
 async function fetchDoc(url, retries = 2) {
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
       const res = await fetch(url, { credentials: "include" });
       if (res.status === 429) {
         if (attempt < retries) { await sleep(3000 * (attempt + 1)); continue; }
+        _httpErrors.rateLimit++;
         return null;
       }
-      if (!res.ok) return null;
+      if (!res.ok) {
+        _httpErrors.other[res.status] = (_httpErrors.other[res.status] ?? 0) + 1;
+        return null;
+      }
       return new DOMParser().parseFromString(await res.text(), "text/html");
     } catch {
       return null;
@@ -154,6 +170,7 @@ function extractListItems(doc, origin) {
 }
 
 async function scrapeMao(sourceUrl) {
+  _resetHttpErrors();
   const origin = new URL(sourceUrl).origin;
   const homeDoc = await fetchDoc(origin + "/");
   if (!homeDoc) throw Object.assign(new Error(), { reason: "network" });
@@ -256,6 +273,7 @@ async function scrapeMao(sourceUrl) {
     vouchers.push(...results.filter(Boolean));
   }
 
+  _checkHttpErrors();
   return vouchers;
 }
 

@@ -26,16 +26,19 @@ function renderSources(sources) {
     const item = document.createElement("div");
     item.className = "source-item" + (source.enabled ? "" : " disabled");
 
-    const ERROR_LABELS = {
-      not_logged_in: "⚠ Not logged in",
-      no_items: "⚠ No items found (site structure changed?)",
-      network: "⚠ Network error",
-      no_results: "⚠ No results",
-      unknown: "⚠ Unknown error",
-    };
+    function errorLabel(code) {
+      if (!code) return "";
+      if (code === "not_logged_in") return "⚠ Not logged in";
+      if (code === "no_items") return "⚠ No items (site structure changed?)";
+      if (code === "network") return "⚠ Network error";
+      if (code === "no_results") return "⚠ No results";
+      if (code.startsWith("rate_limited_")) return `⚠ Rate limited (429 ×${code.split("_")[2]})`;
+      if (code.startsWith("http_")) { const p = code.split("_"); return `⚠ HTTP ${p[1]} ×${p[2]}`; }
+      return "⚠ Error";
+    }
     let lastStr;
     if (source.lastError && source.lastErrorAt) {
-      lastStr = `${ERROR_LABELS[source.lastError] ?? "⚠ Error"} · ${new Date(source.lastErrorAt).toLocaleString()}`;
+      lastStr = `${errorLabel(source.lastError)} · ${new Date(source.lastErrorAt).toLocaleString()}`;
     } else if (source.lastRefreshed) {
       lastStr = `Last synced ${new Date(source.lastRefreshed).toLocaleString()}`;
     } else {
