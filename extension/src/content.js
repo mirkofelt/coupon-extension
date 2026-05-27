@@ -89,37 +89,36 @@
     return { providerUrl, code, conditions };
   }
 
-  function extractOffersFromDoc(doc) {
-    return Array.from(doc.querySelectorAll(".cbg3-global-banner")).map((card) => ({
-      provider: card.querySelector("h3")?.textContent?.trim() ?? null,
-      discountText: card.querySelector(".cbg3-banner--discount p, .cbg3-banner--discount")?.textContent?.trim() ?? null,
-      offerPath: card.querySelector("a[href*='/offer/']")?.getAttribute("href") ?? null,
-    })).filter((o) => o.provider && o.offerPath);
+  function extractListItemsFromDoc(doc) {
+    return Array.from(doc.querySelectorAll(".cbg3-list-item[data-id]")).map((card) => {
+      const href = card.querySelector("a[href*='/offer/']")?.getAttribute("href") ?? null;
+      return {
+        provider: card.querySelector("h3")?.textContent?.replace(/\s*[-–]\s*$/, "").trim() ?? null,
+        discountText: card.querySelector(".cbg3-list-item--discount p")?.textContent?.trim() ?? null,
+        offerPath: href ? href.replace(/\/cat\/\d+$/, "") : null,
+      };
+    }).filter((o) => o.provider && o.offerPath);
   }
 
-  function detectMaxPageFromDoc(doc, hostname) {
-    const nums = Array.from(doc.querySelectorAll("a[href]"))
-      .map((a) => { try { return new URL(a.href); } catch { return null; } })
-      .filter((u) => u && u.hostname === hostname)
-      .map((u) => parseInt(u.searchParams.get("page") ?? "0") || parseInt((u.pathname.match(/\/page\/(\d+)/) ?? [])[1] ?? "0"))
-      .filter((n) => n > 0);
-    return nums.length > 0 ? Math.max(...nums) : 1;
+  async function discoverOverviewUrls() {
+    const doc = await fetchDoc("/");
+    if (!doc) return [];
+    const seen = new Set();
+    return Array.from(doc.querySelectorAll("a[href^='/overview/']"))
+      .map((a) => a.getAttribute("href"))
+      .filter((h) => h && !seen.has(h) && seen.add(h));
   }
 
   async function extractMaoVouchers() {
-    // Page 1: use live DOM (works with JS-rendered content)
-    setBanner(`Scanne Seite 1…`);
-    let offers = extractOffersFromDoc(document);
+    setBanner("Erkunde Kategorien…");
+    const overviewUrls = await discoverOverviewUrls();
 
-    // Additional pages: fetch (server-rendered with ?page=N param)
-    const maxPage = detectMaxPageFromDoc(document, location.hostname);
-    const baseUrl = location.href.split("?")[0];
-
-    for (let p = 2; p <= maxPage; p++) {
-      setBanner(`Scanne Seite ${p}/${maxPage}…`);
-      const doc = await fetchDoc(`${baseUrl}?page=${p}`);
+    let offers = [];
+    for (let i = 0; i < overviewUrls.length; i++) {
+      setBanner(`Scanne Kategorie ${i + 1}/${overviewUrls.length}…`);
+      const doc = await fetchDoc(overviewUrls[i]);
       if (!doc) continue;
-      offers = offers.concat(extractOffersFromDoc(doc));
+      offers = offers.concat(extractListItemsFromDoc(doc));
     }
 
     // Deduplicate by offerPath
@@ -344,18 +343,9 @@
   // --- Main ---
 
   async function main() {
-    // On MAO listing page: scrape live DOM
-    if (isOnMaoListingPage()) {
-      runMaoExtraction();
-      return;
-    }
-
-    // On MAO but wrong page: hint to navigate to listing
+    // On any MAO page: run full category crawl
     if (isOnMaoSite()) {
-      const { vouchers } = await chrome.storage.local.get("vouchers");
-      if (!vouchers?.length) {
-        setBanner("Navigiere zur Angebotsübersicht um Vouchers zu laden", true);
-      }
+      runMaoExtraction();
       return;
     }
 
