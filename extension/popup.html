@@ -12,7 +12,7 @@
       font-size: 13px;
       background: #0f172a;
       color: #e2e8f0;
-      width: 320px;
+      width: 340px;
       min-height: 100px;
     }
 
@@ -24,75 +24,56 @@
       border-bottom: 1px solid #1e293b;
     }
 
-    header h1 {
-      font-size: 15px;
-      font-weight: 600;
-      color: #10b981;
-    }
+    header h1 { font-size: 15px; font-weight: 600; color: #10b981; }
 
     #settings-btn {
-      background: none;
-      border: none;
-      color: #64748b;
-      cursor: pointer;
-      font-size: 16px;
-      padding: 2px 4px;
+      background: none; border: none; color: #64748b;
+      cursor: pointer; font-size: 16px; padding: 2px 4px;
     }
     #settings-btn:hover { color: #94a3b8; }
 
-    #voucher-list {
-      list-style: none;
-      max-height: 400px;
-      overflow-y: auto;
-    }
+    #voucher-list { list-style: none; max-height: 480px; overflow-y: auto; }
 
-    #voucher-list li {
-      display: flex;
-      align-items: center;
-      gap: 10px;
+    #voucher-list > li {
       padding: 10px 16px;
       border-bottom: 1px solid #1e293b;
     }
-    #voucher-list li:last-child { border-bottom: none; }
+    #voucher-list > li:last-child { border-bottom: none; }
 
-    .provider {
-      flex: 1;
-      font-weight: 500;
+    .provider-name {
+      font-weight: 600;
       color: #f1f5f9;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
+      margin-bottom: 6px;
+      font-size: 13px;
     }
 
-    .discount {
-      font-size: 11px;
-      color: #94a3b8;
+    .discount-list { display: flex; flex-direction: column; gap: 4px; }
+
+    .discount-row {
+      display: flex; align-items: flex-start; gap: 8px;
+    }
+
+    .discount-text {
+      flex: 1; font-size: 11px; color: #94a3b8; line-height: 1.4;
+    }
+
+    .conditions {
+      font-size: 10px; color: #475569; margin-top: 1px;
     }
 
     .copy-btn {
-      background: #1e293b;
-      border: 1px solid #334155;
-      color: #94a3b8;
-      border-radius: 4px;
-      padding: 3px 8px;
-      font-size: 11px;
-      cursor: pointer;
-      white-space: nowrap;
-      font-family: monospace;
+      background: #1e293b; border: 1px solid #334155;
+      color: #94a3b8; border-radius: 4px; padding: 2px 7px;
+      font-size: 11px; cursor: pointer; white-space: nowrap;
+      font-family: monospace; flex-shrink: 0;
     }
     .copy-btn:hover { background: #334155; color: #e2e8f0; }
     .copy-btn.copied { color: #10b981; border-color: #10b981; }
 
     #empty {
-      padding: 24px 16px;
-      text-align: center;
-      color: #475569;
+      padding: 24px 16px; text-align: center; color: #475569;
     }
-
-    #empty a {
-      color: #10b981;
-      text-decoration: none;
-    }
+    #empty a { color: #10b981; text-decoration: none; }
   </style>
 </head>
 <body>

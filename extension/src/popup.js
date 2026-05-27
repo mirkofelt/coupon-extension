@@ -18,43 +18,61 @@ async function init() {
     return;
   }
 
-  vouchers.forEach((v) => {
+  for (const v of vouchers) {
     const li = document.createElement("li");
 
-    const info = document.createElement("div");
-    info.style.flex = "1";
-    info.style.overflow = "hidden";
+    const nameEl = document.createElement("div");
+    nameEl.className = "provider-name";
+    nameEl.textContent = v.provider;
+    li.appendChild(nameEl);
 
-    const provider = document.createElement("div");
-    provider.className = "provider";
-    provider.textContent = v.provider;
+    const discountList = document.createElement("div");
+    discountList.className = "discount-list";
 
-    const discount = document.createElement("div");
-    discount.className = "discount";
-    discount.textContent = [v.discount, v.expiry ? `until ${v.expiry}` : ""]
-      .filter(Boolean)
-      .join(" · ");
+    for (const d of v.discounts) {
+      const row = document.createElement("div");
+      row.className = "discount-row";
 
-    info.append(provider, discount);
+      const info = document.createElement("div");
 
-    const btn = document.createElement("button");
-    btn.className = "copy-btn";
-    btn.textContent = v.code;
-    btn.title = "Click to copy";
-    btn.addEventListener("click", () => {
-      navigator.clipboard.writeText(v.code).then(() => {
-        btn.textContent = "✓ Copied";
-        btn.classList.add("copied");
-        setTimeout(() => {
-          btn.textContent = v.code;
-          btn.classList.remove("copied");
-        }, 2000);
-      });
-    });
+      const textEl = document.createElement("div");
+      textEl.className = "discount-text";
+      textEl.textContent = d.text;
+      info.appendChild(textEl);
 
-    li.append(info, btn);
+      if (d.conditions) {
+        const cond = document.createElement("div");
+        cond.className = "conditions";
+        cond.textContent = d.conditions;
+        info.appendChild(cond);
+      }
+
+      row.appendChild(info);
+
+      if (d.code) {
+        const btn = document.createElement("button");
+        btn.className = "copy-btn";
+        btn.textContent = d.code;
+        btn.title = "Click to copy";
+        btn.addEventListener("click", () => {
+          navigator.clipboard.writeText(d.code).then(() => {
+            btn.textContent = "✓";
+            btn.classList.add("copied");
+            setTimeout(() => {
+              btn.textContent = d.code;
+              btn.classList.remove("copied");
+            }, 2000);
+          });
+        });
+        row.appendChild(btn);
+      }
+
+      discountList.appendChild(row);
+    }
+
+    li.appendChild(discountList);
     list.appendChild(li);
-  });
+  }
 }
 
 document.getElementById("settings-btn").addEventListener("click", () => {

@@ -4,11 +4,11 @@ A browser extension that automatically extracts discount vouchers from a configu
 
 ## Features
 
-- **Auto-extraction**: Visit your configured voucher source page — the extension detects and stores all voucher codes automatically
-- **Badge injection**: On any website, providers with a stored voucher get a green "🏷 Coupon" badge injected inline
+- **Zero-config scraping**: Visit your configured source page — the extension automatically detects all providers, their websites, and all available discounts (no CSS selectors needed)
+- **Multiple discounts per provider**: Captures all offers per company including conditions
+- **Domain-based badge injection**: On comparison and shopping sites, any provider with a stored voucher gets a badge — matched by domain, not fragile text matching
 - **One-click copy**: Click the badge to copy the code to your clipboard
-- **Popup overview**: Extension popup lists all stored vouchers with copy buttons
-- **Configurable**: Source URL and CSS selectors are set via the options page — nothing is hardcoded
+- **Popup overview**: Lists all stored providers with their discounts and copy buttons
 
 ## Installation
 
@@ -45,21 +45,7 @@ Open the generated Xcode project, build and run it, then enable the extension in
 
 Open the extension options page (click ⚙ in the popup or via the browser extension settings).
 
-### Source Page
-
-Set the full URL of the page listing your available vouchers. The extension will run on that page and extract vouchers automatically whenever you visit it.
-
-### CSS Selectors
-
-Inspect your source page with browser DevTools to find the right selectors:
-
-| Field | Description | Example |
-|---|---|---|
-| Voucher container | Repeating wrapper element per voucher | `.offer-tile` |
-| Provider name | Element containing the company/brand name | `.offer-title` |
-| Voucher code | Element containing the code string | `.voucher-code` |
-| Discount info | Optional — description of the deal | `.offer-description` |
-| Expiry date | Optional — validity date | `.offer-validity` |
+Set the URL of your voucher source page. That's it — no CSS selectors, no manual mapping. The extension automatically detects the page structure and extracts all providers, their websites, discounts, codes, and conditions on every visit.
 
 ## How it works
 

@@ -34,7 +34,7 @@
       font-size: 12px;
     }
 
-    input[type="text"], input[type="url"] {
+    input[type="url"] {
       width: 100%;
       background: #1e293b;
       border: 1px solid #334155;
@@ -52,6 +52,7 @@
       color: #475569;
       margin-top: -8px;
       margin-bottom: 12px;
+      line-height: 1.5;
     }
 
     button {
@@ -95,33 +96,15 @@
     <h2>Source Page</h2>
     <label for="source-url">URL of the voucher source page</label>
     <input type="url" id="source-url" placeholder="https://example.com/vouchers">
-    <p class="hint">Visit this page while the extension is active to import vouchers automatically.</p>
-  </section>
-
-  <section>
-    <h2>CSS Selectors (source page structure)</h2>
-
-    <label for="sel-item">Voucher container (repeating element)</label>
-    <input type="text" id="sel-item" placeholder=".voucher-item">
-
-    <label for="sel-provider">Provider / company name</label>
-    <input type="text" id="sel-provider" placeholder=".provider-name">
-
-    <label for="sel-code">Voucher code</label>
-    <input type="text" id="sel-code" placeholder=".voucher-code">
-
-    <label for="sel-discount">Discount description (optional)</label>
-    <input type="text" id="sel-discount" placeholder=".discount-info">
-
-    <label for="sel-expiry">Expiry date (optional)</label>
-    <input type="text" id="sel-expiry" placeholder=".expiry-date">
-
-    <p class="hint">Use your browser's DevTools inspector to find the right selectors on your source page.</p>
+    <p class="hint">
+      Visit this page while the extension is active — it will automatically detect
+      all providers, their websites, discounts, and codes. No configuration needed.
+    </p>
   </section>
 
   <section>
     <div>
-      <button id="save-btn">Save Settings</button>
+      <button id="save-btn">Save</button>
       <button id="clear-btn">Clear Vouchers</button>
       <span id="status"></span>
     </div>
