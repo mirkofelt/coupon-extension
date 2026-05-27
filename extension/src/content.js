@@ -5,23 +5,19 @@
 
   // --- Progress banner ---
 
-  function createBanner() {
-    if (document.getElementById("coupon-alert-banner")) return;
-    const el = document.createElement("div");
-    el.id = "coupon-alert-banner";
-    el.style.cssText = `
-      position:fixed;top:16px;right:16px;z-index:2147483647;
-      background:#1a1a2e;color:#e2e8f0;padding:10px 16px;border-radius:8px;
-      font-family:sans-serif;font-size:13px;box-shadow:0 4px 12px rgba(0,0,0,.3);
-      border-left:4px solid #10b981;min-width:220px;
-    `;
-    document.body.appendChild(el);
-  }
-
   function setBanner(text, done = false) {
     let el = document.getElementById("coupon-alert-banner");
-    if (!el) { createBanner(); el = document.getElementById("coupon-alert-banner"); }
-    if (!el) return;
+    if (!el) {
+      el = document.createElement("div");
+      el.id = "coupon-alert-banner";
+      el.style.cssText = `
+        position:fixed;top:16px;right:16px;z-index:2147483647;
+        background:#1a1a2e;color:#e2e8f0;padding:10px 16px;border-radius:8px;
+        font-family:sans-serif;font-size:13px;box-shadow:0 4px 12px rgba(0,0,0,.3);
+        border-left:4px solid #f59e0b;min-width:220px;cursor:default;
+      `;
+      document.body?.appendChild(el);
+    }
     el.textContent = `CouponAlert: ${text}`;
     el.style.borderLeftColor = done ? "#10b981" : "#f59e0b";
     if (done) setTimeout(() => el?.remove(), 4000);
@@ -31,6 +27,10 @@
 
   function isOnMaoSite() {
     return location.hostname.endsWith(MAO_HOSTNAME);
+  }
+
+  function isOnMaoListingPage() {
+    return isOnMaoSite() && document.querySelector(".cbg3-global-banner[data-id]") !== null;
   }
 
   async function fetchDoc(urlOrPath) {
@@ -107,21 +107,17 @@
   }
 
   async function extractMaoVouchers() {
-    setBanner("Lade Angebotsseite…");
+    // Page 1: use live DOM (works with JS-rendered content)
+    setBanner(`Scanne Seite 1…`);
+    let offers = extractOffersFromDoc(document);
 
-    const listingUrl = location.origin + "/";
-    const rootDoc = await fetchDoc(listingUrl);
-    if (!rootDoc?.querySelector(".cbg3-global-banner[data-id]")) {
-      setBanner("Keine Angebote gefunden — bitte erst einloggen", true);
-      return [];
-    }
-
-    let offers = extractOffersFromDoc(rootDoc);
-    const maxPage = detectMaxPageFromDoc(rootDoc, location.hostname);
+    // Additional pages: fetch (server-rendered with ?page=N param)
+    const maxPage = detectMaxPageFromDoc(document, location.hostname);
+    const baseUrl = location.href.split("?")[0];
 
     for (let p = 2; p <= maxPage; p++) {
       setBanner(`Scanne Seite ${p}/${maxPage}…`);
-      const doc = await fetchDoc(`${listingUrl}?page=${p}`);
+      const doc = await fetchDoc(`${baseUrl}?page=${p}`);
       if (!doc) continue;
       offers = offers.concat(extractOffersFromDoc(doc));
     }
@@ -139,8 +135,7 @@
     const BATCH = 5;
 
     for (let i = 0; i < offers.length; i += BATCH) {
-      setBanner(`Lade Angebots-Details… (${Math.min(i + BATCH, total)}/${total})`);
-
+      setBanner(`Lade Details… (${Math.min(i + BATCH, total)}/${total})`);
       const results = await Promise.all(
         offers.slice(i, i + BATCH).map(async (offer) => {
           const doc = await fetchDoc(offer.offerPath);
@@ -238,15 +233,13 @@
   async function runMaoExtraction() {
     const { lastMaoScrape, maoScraping, maoScrapingStarted } = await chrome.storage.local.get(["lastMaoScrape", "maoScraping", "maoScrapingStarted"]);
 
-    // Auto-clear stale scraping lock (older than 10 min = hung/crashed)
     if (maoScraping && maoScrapingStarted && Date.now() - maoScrapingStarted > 10 * 60 * 1000) {
       await chrome.storage.local.remove(["maoScraping", "maoScrapingStarted"]);
     } else if (maoScraping) {
-      setBanner("Scan läuft bereits in einem anderen Tab…", true);
+      setBanner("Scan läuft bereits…", true);
       return;
     }
 
-    // Skip if scraped recently
     if (lastMaoScrape && Date.now() - lastMaoScrape < SCRAPE_COOLDOWN_MS) {
       setBanner("Vouchers sind aktuell ✓", true);
       return;
@@ -276,7 +269,7 @@
     setBanner(`${vouchers.length} Anbieter importiert ✓`, true);
   }
 
-  // --- Badge injection on comparison/shopping pages ---
+  // --- Badge injection ---
 
   async function getVouchers() {
     return new Promise((resolve) => {
@@ -351,17 +344,29 @@
   // --- Main ---
 
   async function main() {
-    if (isOnMaoSite()) {
+    // On MAO listing page: scrape live DOM
+    if (isOnMaoListingPage()) {
       runMaoExtraction();
       return;
     }
 
+    // On MAO but wrong page: hint to navigate to listing
+    if (isOnMaoSite()) {
+      const { vouchers } = await chrome.storage.local.get("vouchers");
+      if (!vouchers?.length) {
+        setBanner("Navigiere zur Angebotsübersicht um Vouchers zu laden", true);
+      }
+      return;
+    }
+
+    // Generic configured source page
     const { sourceUrl } = await chrome.storage.sync.get("sourceUrl");
     if (sourceUrl && location.href.startsWith(sourceUrl)) {
       runGenericExtraction();
       return;
     }
 
+    // Badge injection on all other pages
     const vouchers = await getVouchers();
     if (vouchers.length > 0) injectBadges(vouchers);
   }
