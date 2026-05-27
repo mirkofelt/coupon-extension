@@ -166,7 +166,12 @@
           };
         })
       );
-      vouchers.push(...results.filter(Boolean));
+      const fresh = results.filter(Boolean);
+      if (fresh.length > 0) {
+        vouchers.push(...fresh);
+        await chrome.storage.local.set({ vouchers: [...vouchers] });
+        chrome.runtime.sendMessage({ type: "VOUCHERS_UPDATED", count: vouchers.length });
+      }
     }
 
     return vouchers;
