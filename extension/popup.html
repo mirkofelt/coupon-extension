@@ -96,7 +96,8 @@
     #empty {
       padding: 24px 16px; text-align: center; color: #475569; font-size: 12px;
     }
-    #empty a { color: #10b981; text-decoration: none; }
+    #empty a, .source-link-item { color: #10b981; text-decoration: none; cursor: pointer; }
+    #empty a:hover, .source-link-item:hover { text-decoration: underline; }
   </style>
 </head>
 <body>
@@ -110,7 +111,7 @@
   <div id="no-match" style="display:none">No voucher for this site.</div>
   <div id="empty" style="display:none">
     No vouchers yet.<br>
-    Visit your <a id="source-link" href="#">source page</a> to import them.
+    Visit your <span id="source-links"></span> to import them.
   </div>
 
   <script src="src/popup.js"></script>

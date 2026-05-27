@@ -1,18 +1,24 @@
 async function init() {
   const { vouchers } = await chrome.storage.local.get("vouchers");
-  const { sourceUrl } = await chrome.storage.sync.get("sourceUrl");
+  const { sources } = await chrome.storage.sync.get("sources");
+  const enabledSources = (sources ?? []).filter((s) => s.enabled);
 
   const countRow = document.getElementById("count-row");
   const matchSection = document.getElementById("match-section");
   const noMatch = document.getElementById("no-match");
   const empty = document.getElementById("empty");
-  const sourceLink = document.getElementById("source-link");
+  const sourceLinksEl = document.getElementById("source-links");
 
-  if (sourceUrl) {
-    sourceLink.href = sourceUrl;
-    sourceLink.addEventListener("click", (e) => {
-      e.preventDefault();
-      chrome.tabs.create({ url: sourceUrl });
+  if (enabledSources.length > 0) {
+    sourceLinksEl.innerHTML = enabledSources.map((s) =>
+      `<a class="source-link-item" data-url="${s.url}">${s.label}</a>`
+    ).join(", ");
+    sourceLinksEl.querySelectorAll("[data-url]").forEach((a) => {
+      a.href = a.dataset.url;
+      a.addEventListener("click", (e) => {
+        e.preventDefault();
+        chrome.tabs.create({ url: a.dataset.url });
+      });
     });
   }
 
