@@ -1,14 +1,12 @@
 (() => {
   const BADGE_CLASS = "coupon-alert-badge";
   const MAO_HOSTNAME = "mitarbeiterangebote.de";
+  const SCRAPE_COOLDOWN_MS = 30 * 60 * 1000; // 30 min
 
   // --- Site-specific: mitarbeiterangebote.de ---
 
-  function isMaoListingPage() {
-    return (
-      location.hostname.endsWith(MAO_HOSTNAME) &&
-      document.querySelector(".cbg3-global-banner[data-id]") !== null
-    );
+  function isOnMaoSite() {
+    return location.hostname.endsWith(MAO_HOSTNAME);
   }
 
   async function fetchDoc(urlOrPath) {
@@ -75,23 +73,26 @@
     })).filter((o) => o.provider && o.offerPath);
   }
 
-  function detectMaxPage() {
-    const nums = Array.from(document.querySelectorAll("a[href]"))
+  function detectMaxPageFromDoc(doc, baseHostname) {
+    const nums = Array.from(doc.querySelectorAll("a[href]"))
       .map((a) => { try { return new URL(a.href); } catch { return null; } })
-      .filter((u) => u && u.hostname === location.hostname)
+      .filter((u) => u && u.hostname === baseHostname)
       .map((u) => parseInt(u.searchParams.get("page") ?? "0") || parseInt((u.pathname.match(/\/page\/(\d+)/) ?? [])[1] ?? "0"))
       .filter((n) => n > 0);
     return nums.length > 0 ? Math.max(...nums) : 1;
   }
 
   async function extractMaoVouchers() {
-    // Collect offers from current page + all paginated pages
-    let offers = extractOffersFromDoc(document);
-    const maxPage = detectMaxPage();
-    const baseUrl = location.href.split("?")[0];
+    // Fetch the root listing page regardless of which page we're currently on
+    const listingUrl = location.origin + "/";
+    const rootDoc = await fetchDoc(listingUrl);
+    if (!rootDoc?.querySelector(".cbg3-global-banner[data-id]")) return [];
+
+    let offers = extractOffersFromDoc(rootDoc);
+    const maxPage = detectMaxPageFromDoc(rootDoc, location.hostname);
 
     for (let p = 2; p <= maxPage; p++) {
-      const doc = await fetchDoc(`${baseUrl}?page=${p}`);
+      const doc = await fetchDoc(`${listingUrl}?page=${p}`);
       if (!doc) continue;
       offers = offers.concat(extractOffersFromDoc(doc));
     }
@@ -202,8 +203,23 @@
 
   // --- Source extraction ---
 
-  async function runSourceExtraction() {
-    const vouchers = isMaoListingPage() ? await extractMaoVouchers() : genericExtract();
+  async function runMaoExtraction() {
+    // Cooldown: skip if scraped recently
+    const { lastMaoScrape } = await chrome.storage.local.get("lastMaoScrape");
+    if (lastMaoScrape && Date.now() - lastMaoScrape < SCRAPE_COOLDOWN_MS) return;
+
+    await chrome.storage.local.set({ lastMaoScrape: Date.now() });
+
+    const vouchers = await extractMaoVouchers();
+    if (vouchers.length === 0) return;
+
+    await chrome.storage.local.set({ vouchers });
+    chrome.runtime.sendMessage({ type: "VOUCHERS_UPDATED", count: vouchers.length });
+    showSourceBanner(vouchers.length);
+  }
+
+  async function runGenericExtraction() {
+    const vouchers = genericExtract();
     if (vouchers.length === 0) return;
 
     await chrome.storage.local.set({ vouchers });
@@ -301,10 +317,15 @@
   // --- Main ---
 
   async function main() {
-    const { sourceUrl } = await chrome.storage.sync.get("sourceUrl");
+    // On any MAO page: trigger background scrape (with cooldown)
+    if (isOnMaoSite()) {
+      runMaoExtraction();
+      return;
+    }
 
-    if ((sourceUrl && location.href.startsWith(sourceUrl)) || isMaoListingPage()) {
-      runSourceExtraction();
+    const { sourceUrl } = await chrome.storage.sync.get("sourceUrl");
+    if (sourceUrl && location.href.startsWith(sourceUrl)) {
+      runGenericExtraction();
       return;
     }
 
