@@ -52,7 +52,17 @@ async function renderVoucherList() {
 
     const tdDomain = document.createElement("td");
     tdDomain.className = "domain-cell";
-    tdDomain.textContent = v.providerDomain ?? "—";
+    if (v.providerDomain) {
+      const a = document.createElement("a");
+      a.href = `https://${v.providerDomain}`;
+      a.textContent = v.providerDomain;
+      a.target = "_blank";
+      a.rel = "noopener noreferrer";
+      a.style.color = "inherit";
+      tdDomain.appendChild(a);
+    } else {
+      tdDomain.textContent = "—";
+    }
     tr.appendChild(tdDomain);
 
     const tdCode = document.createElement("td");
