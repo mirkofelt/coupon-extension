@@ -30,7 +30,7 @@
   }
 
   function isOnMaoListingPage() {
-    return isOnMaoSite() && document.querySelector(".cbg3-global-banner[data-id]") !== null;
+    return isOnMaoSite() && document.querySelector(".cbg3-global-banner") !== null;
   }
 
   async function fetchDoc(urlOrPath) {
@@ -90,7 +90,7 @@
   }
 
   function extractOffersFromDoc(doc) {
-    return Array.from(doc.querySelectorAll(".cbg3-global-banner[data-id]")).map((card) => ({
+    return Array.from(doc.querySelectorAll(".cbg3-global-banner")).map((card) => ({
       provider: card.querySelector("h3")?.textContent?.trim() ?? null,
       discountText: card.querySelector(".cbg3-banner--discount p, .cbg3-banner--discount")?.textContent?.trim() ?? null,
       offerPath: card.querySelector("a[href*='/offer/']")?.getAttribute("href") ?? null,
