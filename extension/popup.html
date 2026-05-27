@@ -35,40 +35,47 @@
     #voucher-list { list-style: none; max-height: 480px; overflow-y: auto; }
 
     #voucher-list > li {
-      padding: 10px 16px;
+      padding: 8px 16px;
       border-bottom: 1px solid #1e293b;
+      display: flex;
+      align-items: center;
+      gap: 10px;
     }
     #voucher-list > li:last-child { border-bottom: none; }
 
     .provider-name {
       font-weight: 600;
       color: #f1f5f9;
-      margin-bottom: 6px;
-      font-size: 13px;
+      font-size: 12px;
+      flex-shrink: 0;
+      width: 100px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
 
-    .discount-list { display: flex; flex-direction: column; gap: 4px; }
-
-    .discount-row {
-      display: flex; align-items: flex-start; gap: 8px;
+    .discounts-inline {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      align-items: center;
+      flex: 1;
     }
 
-    .discount-text {
-      flex: 1; font-size: 11px; color: #94a3b8; line-height: 1.4;
-    }
-
-    .conditions {
-      font-size: 10px; color: #475569; margin-top: 1px;
+    .discount-label {
+      font-size: 11px;
+      color: #94a3b8;
+      line-height: 1.4;
     }
 
     .copy-btn {
       background: #1e293b; border: 1px solid #334155;
-      color: #94a3b8; border-radius: 4px; padding: 2px 7px;
+      color: #10b981; border-radius: 4px; padding: 2px 7px;
       font-size: 11px; cursor: pointer; white-space: nowrap;
       font-family: monospace; flex-shrink: 0;
     }
-    .copy-btn:hover { background: #334155; color: #e2e8f0; }
-    .copy-btn.copied { color: #10b981; border-color: #10b981; }
+    .copy-btn:hover { background: #334155; }
+    .copy-btn.copied { color: #fff; border-color: #fff; }
 
     #empty {
       padding: 24px 16px; text-align: center; color: #475569;

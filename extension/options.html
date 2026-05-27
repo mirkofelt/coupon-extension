@@ -12,7 +12,7 @@
       background: #0f172a;
       color: #e2e8f0;
       padding: 32px;
-      max-width: 640px;
+      max-width: 720px;
     }
 
     h1 { font-size: 20px; color: #10b981; margin-bottom: 24px; }
@@ -20,19 +20,14 @@
     section { margin-bottom: 32px; }
 
     h2 {
-      font-size: 13px;
+      font-size: 12px;
       text-transform: uppercase;
       letter-spacing: .08em;
       color: #64748b;
       margin-bottom: 12px;
     }
 
-    label {
-      display: block;
-      margin-bottom: 4px;
-      color: #94a3b8;
-      font-size: 12px;
-    }
+    label { display: block; margin-bottom: 4px; color: #94a3b8; font-size: 12px; }
 
     input[type="url"] {
       width: 100%;
@@ -47,46 +42,75 @@
     }
     input:focus { outline: none; border-color: #10b981; }
 
-    .hint {
-      font-size: 11px;
-      color: #475569;
-      margin-top: -8px;
-      margin-bottom: 12px;
-      line-height: 1.5;
-    }
+    .hint { font-size: 11px; color: #475569; margin-top: -8px; margin-bottom: 12px; line-height: 1.5; }
+
+    .btn-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 
     button {
-      background: #10b981;
-      color: #fff;
-      border: none;
-      border-radius: 6px;
-      padding: 9px 20px;
-      font-size: 13px;
-      font-weight: 600;
-      cursor: pointer;
+      background: #10b981; color: #fff; border: none;
+      border-radius: 6px; padding: 8px 18px;
+      font-size: 13px; font-weight: 600; cursor: pointer;
     }
     button:hover { background: #059669; }
 
-    #status {
-      display: inline-block;
-      margin-left: 12px;
-      font-size: 12px;
-      color: #10b981;
-    }
-
-    #clear-btn {
-      background: #1e293b;
-      color: #ef4444;
-      border: 1px solid #334155;
-      margin-left: 8px;
-    }
+    #clear-btn { background: #1e293b; color: #ef4444; border: 1px solid #334155; }
     #clear-btn:hover { background: #334155; }
 
-    #voucher-count {
+    #status { font-size: 12px; color: #10b981; }
+
+    /* Voucher list */
+    #voucher-section h2 { margin-bottom: 4px; }
+    #voucher-meta { font-size: 12px; color: #475569; margin-bottom: 16px; }
+
+    .voucher-table {
+      width: 100%;
+      border-collapse: collapse;
       font-size: 12px;
-      color: #64748b;
-      margin-top: 8px;
     }
+    .voucher-table th {
+      text-align: left;
+      padding: 6px 10px;
+      color: #475569;
+      border-bottom: 1px solid #1e293b;
+      font-weight: 500;
+    }
+    .voucher-table td {
+      padding: 8px 10px;
+      border-bottom: 1px solid #1e293b;
+      vertical-align: top;
+    }
+    .voucher-table tr:last-child td { border-bottom: none; }
+    .voucher-table tr:hover td { background: #1e293b; }
+
+    .provider-cell { color: #f1f5f9; font-weight: 600; white-space: nowrap; }
+    .domain-cell { color: #475569; font-family: monospace; font-size: 11px; }
+
+    .discount-chip {
+      display: inline-block;
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 4px;
+      padding: 2px 7px;
+      font-size: 11px;
+      color: #94a3b8;
+      margin: 2px 2px 2px 0;
+    }
+    .code-chip {
+      display: inline-block;
+      background: #064e3b;
+      border: 1px solid #10b981;
+      border-radius: 4px;
+      padding: 2px 7px;
+      font-size: 11px;
+      color: #10b981;
+      font-family: monospace;
+      cursor: pointer;
+      margin: 2px 2px 2px 0;
+    }
+    .code-chip:hover { background: #065f46; }
+    .code-chip.copied { color: #fff; border-color: #fff; }
+
+    .no-vouchers { color: #475569; font-size: 13px; }
   </style>
 </head>
 <body>
@@ -100,15 +124,17 @@
       Visit this page while the extension is active — it will automatically detect
       all providers, their websites, discounts, and codes. No configuration needed.
     </p>
-  </section>
-
-  <section>
-    <div>
+    <div class="btn-row">
       <button id="save-btn">Save</button>
       <button id="clear-btn">Clear Vouchers</button>
       <span id="status"></span>
     </div>
-    <p id="voucher-count"></p>
+  </section>
+
+  <section id="voucher-section">
+    <h2>Stored Vouchers</h2>
+    <p id="voucher-meta"></p>
+    <div id="voucher-list"></div>
   </section>
 
   <script src="src/options.js"></script>

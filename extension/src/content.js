@@ -256,6 +256,10 @@
       injectBadge(target, voucher);
       injected.add(domain);
     }
+
+    if (injected.size > 0) {
+      chrome.runtime.sendMessage({ type: "VOUCHER_MATCH" });
+    }
   }
 
   // --- Main ---

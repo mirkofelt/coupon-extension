@@ -18,36 +18,36 @@ async function init() {
     return;
   }
 
-  for (const v of vouchers) {
+  // Deduplicate by providerDomain — keep first occurrence per domain
+  const seen = new Set();
+  const deduped = vouchers.filter((v) => {
+    const key = v.providerDomain ?? v.provider;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+
+  for (const v of deduped) {
     const li = document.createElement("li");
 
     const nameEl = document.createElement("div");
     nameEl.className = "provider-name";
     nameEl.textContent = v.provider;
+    nameEl.title = v.provider;
     li.appendChild(nameEl);
 
-    const discountList = document.createElement("div");
-    discountList.className = "discount-list";
+    const inline = document.createElement("div");
+    inline.className = "discounts-inline";
 
     for (const d of v.discounts) {
-      const row = document.createElement("div");
-      row.className = "discount-row";
-
-      const info = document.createElement("div");
-
-      const textEl = document.createElement("div");
-      textEl.className = "discount-text";
-      textEl.textContent = d.text;
-      info.appendChild(textEl);
-
-      if (d.conditions) {
-        const cond = document.createElement("div");
-        cond.className = "conditions";
-        cond.textContent = d.conditions;
-        info.appendChild(cond);
+      // Skip text that would just repeat the code
+      const textIsCode = d.code && d.text?.trim() === d.code.trim();
+      if (d.text && !textIsCode) {
+        const label = document.createElement("span");
+        label.className = "discount-label";
+        label.textContent = d.text;
+        inline.appendChild(label);
       }
-
-      row.appendChild(info);
 
       if (d.code) {
         const btn = document.createElement("button");
@@ -58,19 +58,14 @@ async function init() {
           navigator.clipboard.writeText(d.code).then(() => {
             btn.textContent = "✓";
             btn.classList.add("copied");
-            setTimeout(() => {
-              btn.textContent = d.code;
-              btn.classList.remove("copied");
-            }, 2000);
+            setTimeout(() => { btn.textContent = d.code; btn.classList.remove("copied"); }, 2000);
           });
         });
-        row.appendChild(btn);
+        inline.appendChild(btn);
       }
-
-      discountList.appendChild(row);
     }
 
-    li.appendChild(discountList);
+    li.appendChild(inline);
     list.appendChild(li);
   }
 }
