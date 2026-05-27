@@ -118,6 +118,20 @@
     .nocode-cell { font-size: 11px; color: #334155; font-style: italic; }
     .source-cell { font-size: 11px; color: #475569; }
     .no-vouchers { color: #475569; font-size: 13px; }
+
+    /* Pagination */
+    #pagination { display: flex; align-items: center; gap: 12px; margin-top: 14px; flex-wrap: wrap; }
+    #pagination button { padding: 6px 14px; font-size: 12px; font-weight: 500; }
+    .page-info { font-size: 12px; color: #475569; }
+
+    /* Blocked keywords */
+    textarea {
+      width: 100%; background: #1e293b; border: 1px solid #334155;
+      border-radius: 6px; color: #f1f5f9; padding: 8px 12px;
+      font-size: 12px; font-family: monospace; resize: vertical; min-height: 72px;
+      margin-bottom: 8px;
+    }
+    textarea:focus { outline: none; border-color: #10b981; }
   </style>
 </head>
 <body>
@@ -152,6 +166,14 @@
   </section>
 
   <section>
+    <h2>Blocked Categories</h2>
+    <label>Skip providers matching these keywords (one per line, case-insensitive)</label>
+    <textarea id="blocked-keywords" placeholder="auto&#10;kfz&#10;leasing"></textarea>
+    <p class="hint">Providers whose name contains any of these words will be skipped during scraping.</p>
+    <button id="save-blocked-btn">Save</button>
+  </section>
+
+  <section>
     <h2>Auto-Refresh</h2>
     <div class="interval-row">
       <label>Refresh every</label>
@@ -170,6 +192,7 @@
     <p id="voucher-meta"></p>
     <input type="search" id="search" placeholder="Search providers…" style="display:none">
     <div id="voucher-list"></div>
+    <div id="pagination"></div>
   </section>
 
   <script src="src/options.js"></script>

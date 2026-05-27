@@ -1,6 +1,12 @@
+const PAGE_SIZE = 50;
+let voucherData = [];
+let currentPage = 1;
+let searchQuery = "";
+
 async function load() {
-  const { sources, refreshIntervalHours } = await chrome.storage.sync.get(["sources", "refreshIntervalHours"]);
+  const { sources, refreshIntervalHours, blockedKeywords } = await chrome.storage.sync.get(["sources", "refreshIntervalHours", "blockedKeywords"]);
   document.getElementById("interval-hours").value = refreshIntervalHours ?? 24;
+  document.getElementById("blocked-keywords").value = (blockedKeywords ?? []).join("\n");
   renderSources(sources ?? []);
   renderVoucherList();
 }
@@ -125,6 +131,15 @@ document.getElementById("add-confirm-btn").addEventListener("click", async () =>
   setStatus("Source added ✓");
 });
 
+// --- Blocked keywords ---
+
+document.getElementById("save-blocked-btn").addEventListener("click", async () => {
+  const raw = document.getElementById("blocked-keywords").value;
+  const keywords = raw.split(/[\n,]+/).map((s) => s.trim().toLowerCase()).filter(Boolean);
+  await chrome.storage.sync.set({ blockedKeywords: keywords });
+  setStatus("Saved ✓");
+});
+
 // --- Interval ---
 
 document.getElementById("save-interval-btn").addEventListener("click", async () => {
@@ -137,8 +152,19 @@ document.getElementById("save-interval-btn").addEventListener("click", async () 
 
 document.getElementById("clear-btn").addEventListener("click", async () => {
   await chrome.storage.local.remove(["vouchers"]);
+  voucherData = [];
+  currentPage = 1;
+  searchQuery = "";
   renderVoucherList();
   setStatus("Cleared");
+});
+
+// --- Search ---
+
+document.getElementById("search").addEventListener("input", (e) => {
+  searchQuery = e.target.value.toLowerCase();
+  currentPage = 1;
+  renderPage();
 });
 
 // --- Voucher list ---
@@ -153,11 +179,13 @@ async function renderVoucherList() {
     meta.textContent = "";
     searchInput.style.display = "none";
     container.innerHTML = '<p class="no-vouchers">No vouchers stored yet. Enable a source and wait for the next refresh, or visit the source page.</p>';
+    document.getElementById("pagination").innerHTML = "";
+    voucherData = [];
     return;
   }
 
   const seen = new Set();
-  const deduped = vouchers.filter((v) => {
+  voucherData = vouchers.filter((v) => {
     const key = v.providerDomain ?? v.provider;
     if (seen.has(key)) return false;
     seen.add(key);
@@ -165,10 +193,30 @@ async function renderVoucherList() {
   });
 
   const ts = vouchers.reduce((max, v) => Math.max(max, v.extractedAt ?? 0), 0);
-  meta.textContent = `${deduped.length} provider${deduped.length !== 1 ? "s" : ""}` +
+  meta.textContent = `${voucherData.length} provider${voucherData.length !== 1 ? "s" : ""}` +
     (ts ? ` · last updated ${new Date(ts).toLocaleString()}` : "");
 
   searchInput.style.display = "block";
+  searchQuery = "";
+  searchInput.value = "";
+  currentPage = 1;
+  renderPage();
+}
+
+function renderPage() {
+  const container = document.getElementById("voucher-list");
+
+  const filtered = searchQuery
+    ? voucherData.filter((v) =>
+        `${v.provider} ${v.providerDomain ?? ""} ${v.sourceUrl ?? ""}`.toLowerCase().includes(searchQuery)
+      )
+    : voucherData;
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  if (currentPage > totalPages) currentPage = totalPages;
+
+  const start = (currentPage - 1) * PAGE_SIZE;
+  const slice = filtered.slice(start, start + PAGE_SIZE);
 
   const table = document.createElement("table");
   table.className = "voucher-table";
@@ -177,13 +225,22 @@ async function renderVoucherList() {
   </tr></thead>`;
 
   const tbody = document.createElement("tbody");
-  for (const v of deduped) {
+  for (const v of slice) {
     const tr = document.createElement("tr");
-    tr.dataset.search = `${v.provider} ${v.providerDomain ?? ""} ${v.sourceUrl ?? ""}`.toLowerCase();
 
     const tdName = document.createElement("td");
     tdName.className = "provider-cell";
-    tdName.textContent = v.provider;
+    if (v.offerUrl) {
+      const a = document.createElement("a");
+      a.href = v.offerUrl;
+      a.textContent = v.provider;
+      a.target = "_blank";
+      a.rel = "noopener noreferrer";
+      a.style.cssText = "color:inherit;text-decoration:underline dotted;text-underline-offset:3px;";
+      tdName.appendChild(a);
+    } else {
+      tdName.textContent = v.provider;
+    }
 
     const tdDomain = document.createElement("td");
     tdDomain.className = "domain-cell";
@@ -233,13 +290,31 @@ async function renderVoucherList() {
   container.innerHTML = "";
   container.appendChild(table);
 
-  searchInput.value = "";
-  searchInput.addEventListener("input", () => {
-    const q = searchInput.value.toLowerCase();
-    for (const row of tbody.querySelectorAll("tr")) {
-      row.hidden = q.length > 0 && !row.dataset.search.includes(q);
-    }
-  });
+  renderPagination(filtered.length, totalPages);
+}
+
+function renderPagination(total, totalPages) {
+  const el = document.getElementById("pagination");
+  el.innerHTML = "";
+  if (totalPages <= 1) return;
+
+  const prev = document.createElement("button");
+  prev.className = "btn-secondary";
+  prev.textContent = "← Prev";
+  prev.disabled = currentPage === 1;
+  prev.addEventListener("click", () => { currentPage--; renderPage(); });
+
+  const info = document.createElement("span");
+  info.className = "page-info";
+  info.textContent = `Page ${currentPage} of ${totalPages} (${total})`;
+
+  const next = document.createElement("button");
+  next.className = "btn-secondary";
+  next.textContent = "Next →";
+  next.disabled = currentPage === totalPages;
+  next.addEventListener("click", () => { currentPage++; renderPage(); });
+
+  el.append(prev, info, next);
 }
 
 // --- Helpers ---

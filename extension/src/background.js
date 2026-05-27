@@ -165,6 +165,14 @@ async function scrapeMao(sourceUrl) {
     return true;
   });
 
+  const { blockedKeywords } = await chrome.storage.sync.get("blockedKeywords");
+  if (blockedKeywords?.length) {
+    offers = offers.filter((o) => {
+      const name = (o.provider ?? "").toLowerCase();
+      return !blockedKeywords.some((kw) => name.includes(kw));
+    });
+  }
+
   const vouchers = [];
   const BATCH = 3;
   for (let i = 0; i < offers.length; i += BATCH) {
