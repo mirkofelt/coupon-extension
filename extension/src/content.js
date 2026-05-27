@@ -135,7 +135,10 @@
     _resetHttpErrors();
     setBanner("Erkunde Kategorien…");
     const homeDoc = await fetchDoc("/");
-    if (!homeDoc) throw Object.assign(new Error(), { reason: "network" });
+    if (!homeDoc) {
+      _checkHttpErrors();
+      throw Object.assign(new Error(), { reason: "network" });
+    }
 
     const overviewUrls = (() => {
       const seen = new Set();
@@ -154,7 +157,10 @@
       offers = offers.concat(extractListItemsFromDoc(doc));
     }
 
-    if (offers.length === 0) throw Object.assign(new Error(), { reason: "no_items" });
+    if (offers.length === 0) {
+      _checkHttpErrors();
+      throw Object.assign(new Error(), { reason: "no_items" });
+    }
 
     // Deduplicate: first by offerPath, then by normalized provider name
     const seenPaths = new Set();
@@ -293,7 +299,7 @@
 
     const stored = await chrome.storage.local.get([lockKey, startKey, cooldownKey]);
 
-    if (stored[lockKey] && stored[startKey] && Date.now() - stored[startKey] > 10 * 60 * 1000) {
+    if (stored[lockKey] && stored[startKey] && Date.now() - stored[startKey] > 2 * 60 * 1000) {
       await chrome.storage.local.remove([lockKey, startKey]);
     } else if (stored[lockKey]) {
       setBanner("Scan läuft bereits…", true);
