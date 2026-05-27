@@ -2,6 +2,7 @@
   const BADGE_CLASS = "coupon-alert-badge";
   const MAO_HOSTNAME = "mitarbeiterangebote.de";
   const SCRAPE_COOLDOWN_MS = 30 * 60 * 1000;
+  const OFFER_CACHE_TTL = 4 * 60 * 60 * 1000;
 
   // --- Progress banner ---
 
@@ -131,74 +132,76 @@
     }).filter((o) => o.provider && o.offerPath);
   }
 
-  async function extractMaoVouchers() {
+  async function extractMaoVouchers(sourceUrl, offerCacheKey, cachedData) {
     _resetHttpErrors();
-    setBanner("Erkunde Kategorien…");
-    const homeDoc = await fetchDoc("/");
-    if (!homeDoc) {
-      _checkHttpErrors();
-      throw Object.assign(new Error(), { reason: "network" });
-    }
 
-    const overviewUrls = (() => {
-      const seen = new Set();
-      return Array.from(homeDoc.querySelectorAll("a[href^='/overview/']"))
-        .map((a) => a.getAttribute("href"))
-        .filter((h) => h && !h.includes("#") && !seen.has(h) && seen.add(h));
-    })();
+    let offers, resumeFrom, cacheTs;
 
-    if (overviewUrls.length === 0) throw Object.assign(new Error(), { reason: "not_logged_in" });
+    if (cachedData) {
+      ({ offers, progress: resumeFrom = 0, ts: cacheTs } = cachedData);
+      setBanner(`Weiter bei ${resumeFrom}/${offers.length}…`);
+    } else {
+      resumeFrom = 0;
+      cacheTs = Date.now();
+      setBanner("Erkunde Kategorien…");
 
-    let offers = [];
-    for (let i = 0; i < overviewUrls.length; i++) {
-      setBanner(`Scanne Kategorie ${i + 1}/${overviewUrls.length}…`);
-      const doc = await fetchDoc(overviewUrls[i]);
-      if (!doc) continue;
-      offers = offers.concat(extractListItemsFromDoc(doc));
-    }
+      const homeDoc = await fetchDoc("/");
+      if (!homeDoc) {
+        _checkHttpErrors();
+        throw Object.assign(new Error(), { reason: "network" });
+      }
 
-    if (offers.length === 0) {
-      _checkHttpErrors();
-      throw Object.assign(new Error(), { reason: "no_items" });
-    }
+      const overviewUrls = (() => {
+        const seen = new Set();
+        return Array.from(homeDoc.querySelectorAll("a[href^='/overview/']"))
+          .map((a) => a.getAttribute("href"))
+          .filter((h) => h && !h.includes("#") && !seen.has(h) && seen.add(h));
+      })();
 
-    // Deduplicate: first by offerPath, then by normalized provider name
-    const seenPaths = new Set();
-    offers = offers.filter((o) => {
-      if (seenPaths.has(o.offerPath)) return false;
-      seenPaths.add(o.offerPath);
-      return true;
-    });
-    const seenProviders = new Set();
-    offers = offers.filter((o) => {
-      const key = o.provider?.toLowerCase().replace(/\s+/g, "") ?? o.offerPath;
-      if (seenProviders.has(key)) return false;
-      seenProviders.add(key);
-      return true;
-    });
+      if (overviewUrls.length === 0) throw Object.assign(new Error(), { reason: "not_logged_in" });
 
-    const { blockedKeywords } = await chrome.storage.sync.get("blockedKeywords");
-    if (blockedKeywords?.length) {
+      let rawOffers = [];
+      for (let i = 0; i < overviewUrls.length; i++) {
+        setBanner(`Scanne Kategorie ${i + 1}/${overviewUrls.length}…`);
+        const doc = await fetchDoc(overviewUrls[i]);
+        if (doc) rawOffers = rawOffers.concat(extractListItemsFromDoc(doc));
+      }
+
+      if (rawOffers.length === 0) {
+        _checkHttpErrors();
+        throw Object.assign(new Error(), { reason: "no_items" });
+      }
+
+      const seenPaths = new Set();
+      offers = rawOffers.filter((o) => !seenPaths.has(o.offerPath) && seenPaths.add(o.offerPath));
+      const seenProviders = new Set();
       offers = offers.filter((o) => {
-        const name = (o.provider ?? "").toLowerCase();
-        return !blockedKeywords.some((kw) => name.includes(kw));
+        const key = o.provider?.toLowerCase().replace(/\s+/g, "") ?? o.offerPath;
+        return !seenProviders.has(key) && seenProviders.add(key);
       });
+
+      const { blockedKeywords } = await chrome.storage.sync.get("blockedKeywords");
+      if (blockedKeywords?.length) {
+        offers = offers.filter((o) => !blockedKeywords.some((kw) => (o.provider ?? "").toLowerCase().includes(kw)));
+      }
+
+      await chrome.storage.local.set({ [offerCacheKey]: { offers, ts: cacheTs, progress: 0 } });
     }
 
     const vouchers = [];
     const total = offers.length;
     const BATCH = 3;
 
-    for (let i = 0; i < offers.length; i += BATCH) {
-      if (i > 0) await sleep(400);
+    for (let i = resumeFrom; i < offers.length; i += BATCH) {
+      if (i > resumeFrom) await sleep(400);
       setBanner(`Lade Details… (${Math.min(i + BATCH, total)}/${total})`);
+
       const results = await Promise.all(
         offers.slice(i, i + BATCH).map(async (offer) => {
           const doc = await fetchDoc(offer.offerPath);
           if (!doc) return null;
 
           const { providerUrl, code, conditions } = await processDetailDoc(doc);
-
           let providerDomain = null;
           if (providerUrl) {
             try { providerDomain = new URL(providerUrl).hostname.replace(/^www\./, ""); } catch {}
@@ -214,21 +217,25 @@
           if (discounts.length === 0 && !providerDomain) return null;
 
           return {
-            provider: offer.provider,
-            providerUrl,
-            providerDomain,
-            offerUrl: location.origin + offer.offerPath,
-            discounts,
-            extractedAt: Date.now(),
+            provider: offer.provider, providerUrl, providerDomain,
+            offerUrl: location.origin + offer.offerPath, discounts, extractedAt: Date.now(),
           };
         })
       );
+
       const fresh = results.filter(Boolean);
       if (fresh.length > 0) {
         vouchers.push(...fresh);
-        await chrome.storage.local.set({ vouchers: [...vouchers] });
+        // Merge with other sources so we don't overwrite them
+        const { vouchers: stored } = await chrome.storage.local.get("vouchers");
+        const others = (stored ?? []).filter((v) => v.sourceUrl !== sourceUrl);
+        await chrome.storage.local.set({ vouchers: [...others, ...vouchers.map((v) => ({ ...v, sourceUrl }))] });
         chrome.runtime.sendMessage({ type: "VOUCHERS_UPDATED", count: vouchers.length });
       }
+
+      await chrome.storage.local.set({
+        [offerCacheKey]: { offers, ts: cacheTs, progress: Math.min(i + BATCH, offers.length) },
+      });
     }
 
     _checkHttpErrors();
@@ -295,6 +302,7 @@
   async function runMaoExtraction(sourceUrl) {
     const lockKey = `maoScraping_${btoa(sourceUrl).slice(0, 12)}`;
     const cooldownKey = `lastMaoScrape_${btoa(sourceUrl).slice(0, 12)}`;
+    const offerCacheKey = `maoOffers_${btoa(sourceUrl).slice(0, 12)}`;
 
     // sessionStorage is tab-scoped and clears on navigation — no stale locks after redirects
     if (sessionStorage.getItem(lockKey)) {
@@ -302,8 +310,13 @@
       return;
     }
 
-    const { [cooldownKey]: lastScrape } = await chrome.storage.local.get(cooldownKey);
-    if (lastScrape && Date.now() - lastScrape < SCRAPE_COOLDOWN_MS) {
+    const { [cooldownKey]: lastScrape, [offerCacheKey]: offerCache } =
+      await chrome.storage.local.get([cooldownKey, offerCacheKey]);
+
+    const isResume = offerCache && Date.now() - offerCache.ts < OFFER_CACHE_TTL
+      && offerCache.progress < offerCache.offers.length;
+
+    if (!isResume && lastScrape && Date.now() - lastScrape < SCRAPE_COOLDOWN_MS) {
       setBanner("Vouchers sind aktuell ✓", true);
       return;
     }
@@ -311,19 +324,21 @@
     sessionStorage.setItem(lockKey, "1");
 
     try {
-      const freshVouchers = await extractMaoVouchers();
-      if (freshVouchers.length > 0) {
-        const tagged = freshVouchers.map((v) => ({ ...v, sourceUrl }));
-        const { vouchers: existing } = await chrome.storage.local.get("vouchers");
-        const kept = (existing ?? []).filter((v) => v.sourceUrl !== sourceUrl);
-        const updated = [...kept, ...tagged];
-        await chrome.storage.local.set({ vouchers: updated, [cooldownKey]: Date.now() });
-        chrome.runtime.sendMessage({ type: "VOUCHERS_UPDATED", count: updated.length });
-        setBanner(`${tagged.length} Anbieter importiert ✓`, true);
+      await extractMaoVouchers(sourceUrl, offerCacheKey, isResume ? offerCache : null);
+
+      const { vouchers: saved } = await chrome.storage.local.get("vouchers");
+      const count = (saved ?? []).filter((v) => v.sourceUrl === sourceUrl).length;
+
+      await chrome.storage.local.set({ [cooldownKey]: Date.now() });
+      await chrome.storage.local.remove(offerCacheKey);
+
+      if (count > 0) {
+        setBanner(`${count} Anbieter importiert ✓`, true);
       } else {
         setBanner("Keine Codes gefunden (Angebote ohne Gutschein?)", true);
       }
     } catch (err) {
+      // Keep offerCache on error so the scan can be resumed next visit
       if (err.reason === "not_logged_in") {
         setBanner("Nicht eingeloggt – bitte erst anmelden ✗", true);
       } else if (err.reason === "no_items") {
