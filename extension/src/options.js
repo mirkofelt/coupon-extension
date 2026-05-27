@@ -8,28 +8,42 @@ async function renderVoucherList() {
   const { vouchers } = await chrome.storage.local.get("vouchers");
   const meta = document.getElementById("voucher-meta");
   const container = document.getElementById("voucher-list");
+  const searchInput = document.getElementById("search");
 
   if (!vouchers || vouchers.length === 0) {
     meta.textContent = "";
+    searchInput.style.display = "none";
     container.innerHTML = '<p class="no-vouchers">No vouchers stored yet. Visit your source page to import them.</p>';
     return;
   }
 
+  // Deduplicate by domain
+  const seen = new Set();
+  const deduped = vouchers.filter((v) => {
+    const key = v.providerDomain ?? v.provider;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+
   const ts = vouchers[0]?.extractedAt;
-  meta.textContent = `${vouchers.length} provider${vouchers.length !== 1 ? "s" : ""}` +
+  meta.textContent = `${deduped.length} provider${deduped.length !== 1 ? "s" : ""}` +
     (ts ? ` · last updated ${new Date(ts).toLocaleString()}` : "");
+
+  searchInput.style.display = "block";
 
   const table = document.createElement("table");
   table.className = "voucher-table";
   table.innerHTML = `<thead><tr>
     <th>Provider</th>
     <th>Domain</th>
-    <th>Discounts &amp; Codes</th>
+    <th>Code</th>
   </tr></thead>`;
 
   const tbody = document.createElement("tbody");
-  for (const v of vouchers) {
+  for (const v of deduped) {
     const tr = document.createElement("tr");
+    tr.dataset.search = `${v.provider} ${v.providerDomain ?? ""}`.toLowerCase();
 
     const tdName = document.createElement("td");
     tdName.className = "provider-cell";
@@ -41,36 +55,40 @@ async function renderVoucherList() {
     tdDomain.textContent = v.providerDomain ?? "—";
     tr.appendChild(tdDomain);
 
-    const tdDiscounts = document.createElement("td");
-    for (const d of v.discounts) {
-      if (d.text) {
-        const chip = document.createElement("span");
-        chip.className = "discount-chip";
-        chip.textContent = d.text;
-        tdDiscounts.appendChild(chip);
-      }
-      if (d.code) {
-        const chip = document.createElement("span");
-        chip.className = "code-chip";
-        chip.textContent = d.code;
-        chip.title = "Click to copy";
-        chip.addEventListener("click", () => {
-          navigator.clipboard.writeText(d.code).then(() => {
-            chip.classList.add("copied");
-            chip.textContent = "✓ Copied";
-            setTimeout(() => { chip.classList.remove("copied"); chip.textContent = d.code; }, 2000);
-          });
+    const tdCode = document.createElement("td");
+    const firstCode = v.discounts?.find((d) => d.code)?.code;
+    if (firstCode) {
+      tdCode.className = "code-cell";
+      tdCode.textContent = firstCode;
+      tdCode.title = "Click to copy";
+      tdCode.style.cursor = "pointer";
+      tdCode.addEventListener("click", () => {
+        navigator.clipboard.writeText(firstCode).then(() => {
+          const orig = tdCode.textContent;
+          tdCode.textContent = "✓ Copied";
+          setTimeout(() => (tdCode.textContent = orig), 2000);
         });
-        tdDiscounts.appendChild(chip);
-      }
+      });
+    } else {
+      tdCode.className = "nocode-cell";
+      tdCode.textContent = "—";
     }
-    tr.appendChild(tdDiscounts);
+    tr.appendChild(tdCode);
+
     tbody.appendChild(tr);
   }
 
   table.appendChild(tbody);
   container.innerHTML = "";
   container.appendChild(table);
+
+  searchInput.value = "";
+  searchInput.addEventListener("input", () => {
+    const q = searchInput.value.toLowerCase();
+    for (const row of tbody.querySelectorAll("tr")) {
+      row.hidden = q.length > 0 && !row.dataset.search.includes(q);
+    }
+  });
 }
 
 document.getElementById("save-btn").addEventListener("click", async () => {

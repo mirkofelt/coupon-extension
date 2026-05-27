@@ -11,12 +11,12 @@
     );
   }
 
-  async function fetchDetailDoc(path) {
+  async function fetchDoc(urlOrPath) {
+    const url = urlOrPath.startsWith("http") ? urlOrPath : location.origin + urlOrPath;
     try {
-      const res = await fetch(location.origin + path, { credentials: "include" });
+      const res = await fetch(url, { credentials: "include" });
       if (!res.ok) return null;
-      const html = await res.text();
-      return new DOMParser().parseFromString(html, "text/html");
+      return new DOMParser().parseFromString(await res.text(), "text/html");
     } catch {
       return null;
     }
@@ -39,14 +39,15 @@
 
   const COND_RE = /(?:ab|mindest(?:ens|\.?)|bei|gültig|nur|bis|max\.?|gilt)\s+[^,\n]{3,80}/i;
 
-  async function processDetailDoc(doc, discountText) {
+  async function processDetailDoc(doc) {
     const extEl = doc.querySelector("[data-href^='http']");
     const providerUrl = extEl?.dataset?.href ?? null;
 
     let code = null;
-    const couponBtn = doc.querySelector("[data-url*='/api/coupon']");
+    const couponBtn = doc.querySelector("[data-url*='/api/coupon'], [data-salesoptionid]");
     if (couponBtn) {
-      const ac = new URLSearchParams((couponBtn.dataset.url ?? "").split("?")[1]).get("ac");
+      const dataUrl = couponBtn.dataset.url ?? "";
+      const ac = new URLSearchParams(dataUrl.split("?")[1] ?? "").get("ac");
       const offerId = couponBtn.dataset.offerid;
       const saleOptionId = couponBtn.dataset.salesoptionid;
       if (ac && offerId && saleOptionId) {
@@ -66,14 +67,42 @@
     return { providerUrl, code, conditions };
   }
 
-  async function extractMaoVouchers() {
-    const cards = Array.from(document.querySelectorAll(".cbg3-global-banner[data-id]"));
-
-    const offers = cards.map((card) => ({
+  function extractOffersFromDoc(doc) {
+    return Array.from(doc.querySelectorAll(".cbg3-global-banner[data-id]")).map((card) => ({
       provider: card.querySelector("h3")?.textContent?.trim() ?? null,
       discountText: card.querySelector(".cbg3-banner--discount p, .cbg3-banner--discount")?.textContent?.trim() ?? null,
       offerPath: card.querySelector("a[href*='/offer/']")?.getAttribute("href") ?? null,
     })).filter((o) => o.provider && o.offerPath);
+  }
+
+  function detectMaxPage() {
+    const nums = Array.from(document.querySelectorAll("a[href]"))
+      .map((a) => { try { return new URL(a.href); } catch { return null; } })
+      .filter((u) => u && u.hostname === location.hostname)
+      .map((u) => parseInt(u.searchParams.get("page") ?? "0") || parseInt((u.pathname.match(/\/page\/(\d+)/) ?? [])[1] ?? "0"))
+      .filter((n) => n > 0);
+    return nums.length > 0 ? Math.max(...nums) : 1;
+  }
+
+  async function extractMaoVouchers() {
+    // Collect offers from current page + all paginated pages
+    let offers = extractOffersFromDoc(document);
+    const maxPage = detectMaxPage();
+    const baseUrl = location.href.split("?")[0];
+
+    for (let p = 2; p <= maxPage; p++) {
+      const doc = await fetchDoc(`${baseUrl}?page=${p}`);
+      if (!doc) continue;
+      offers = offers.concat(extractOffersFromDoc(doc));
+    }
+
+    // Deduplicate by offerPath
+    const seenPaths = new Set();
+    offers = offers.filter((o) => {
+      if (seenPaths.has(o.offerPath)) return false;
+      seenPaths.add(o.offerPath);
+      return true;
+    });
 
     const vouchers = [];
     const BATCH = 5;
@@ -81,10 +110,10 @@
     for (let i = 0; i < offers.length; i += BATCH) {
       const results = await Promise.all(
         offers.slice(i, i + BATCH).map(async (offer) => {
-          const doc = await fetchDetailDoc(offer.offerPath);
+          const doc = await fetchDoc(offer.offerPath);
           if (!doc) return null;
 
-          const { providerUrl, code, conditions } = await processDetailDoc(doc, offer.discountText);
+          const { providerUrl, code, conditions } = await processDetailDoc(doc);
 
           let providerDomain = null;
           if (providerUrl) {
@@ -98,9 +127,16 @@
             discounts.push({ text: "Gutschein", code, conditions });
           }
 
-          if (discounts.length === 0) return null;
+          if (discounts.length === 0 && !providerDomain) return null;
 
-          return { provider: offer.provider, providerUrl, providerDomain, discounts, extractedAt: Date.now() };
+          return {
+            provider: offer.provider,
+            providerUrl,
+            providerDomain,
+            offerUrl: location.origin + offer.offerPath,
+            discounts,
+            extractedAt: Date.now(),
+          };
         })
       );
       vouchers.push(...results.filter(Boolean));
@@ -158,7 +194,7 @@
       if (!provider || provider.length < 2) continue;
 
       seen.add(domain);
-      vouchers.push({ provider, providerUrl: link.href, providerDomain: domain, discounts, extractedAt: Date.now() });
+      vouchers.push({ provider, providerUrl: link.href, providerDomain: domain, offerUrl: null, discounts, extractedAt: Date.now() });
     }
 
     return vouchers;

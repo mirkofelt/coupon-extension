@@ -20,7 +20,7 @@
     section { margin-bottom: 32px; }
 
     h2 {
-      font-size: 12px;
+      font-size: 11px;
       text-transform: uppercase;
       letter-spacing: .08em;
       color: #64748b;
@@ -29,7 +29,7 @@
 
     label { display: block; margin-bottom: 4px; color: #94a3b8; font-size: 12px; }
 
-    input[type="url"] {
+    input[type="url"], input[type="search"] {
       width: 100%;
       background: #1e293b;
       border: 1px solid #334155;
@@ -38,13 +38,13 @@
       padding: 8px 12px;
       font-size: 13px;
       margin-bottom: 12px;
-      font-family: monospace;
     }
+    input[type="url"] { font-family: monospace; }
     input:focus { outline: none; border-color: #10b981; }
 
     .hint { font-size: 11px; color: #475569; margin-top: -8px; margin-bottom: 12px; line-height: 1.5; }
 
-    .btn-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .btn-row { display: flex; align-items: center; gap: 8px; }
 
     button {
       background: #10b981; color: #fff; border: none;
@@ -58,14 +58,12 @@
 
     #status { font-size: 12px; color: #10b981; }
 
-    /* Voucher list */
-    #voucher-section h2 { margin-bottom: 4px; }
-    #voucher-meta { font-size: 12px; color: #475569; margin-bottom: 16px; }
+    #voucher-meta { font-size: 12px; color: #475569; margin-bottom: 12px; }
 
     .voucher-table {
       width: 100%;
       border-collapse: collapse;
-      font-size: 12px;
+      font-size: 13px;
     }
     .voucher-table th {
       text-align: left;
@@ -73,42 +71,23 @@
       color: #475569;
       border-bottom: 1px solid #1e293b;
       font-weight: 500;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: .06em;
     }
     .voucher-table td {
       padding: 8px 10px;
       border-bottom: 1px solid #1e293b;
-      vertical-align: top;
+      vertical-align: middle;
     }
     .voucher-table tr:last-child td { border-bottom: none; }
     .voucher-table tr:hover td { background: #1e293b; }
+    .voucher-table tr[hidden] { display: none; }
 
-    .provider-cell { color: #f1f5f9; font-weight: 600; white-space: nowrap; }
-    .domain-cell { color: #475569; font-family: monospace; font-size: 11px; }
-
-    .discount-chip {
-      display: inline-block;
-      background: #1e293b;
-      border: 1px solid #334155;
-      border-radius: 4px;
-      padding: 2px 7px;
-      font-size: 11px;
-      color: #94a3b8;
-      margin: 2px 2px 2px 0;
-    }
-    .code-chip {
-      display: inline-block;
-      background: #064e3b;
-      border: 1px solid #10b981;
-      border-radius: 4px;
-      padding: 2px 7px;
-      font-size: 11px;
-      color: #10b981;
-      font-family: monospace;
-      cursor: pointer;
-      margin: 2px 2px 2px 0;
-    }
-    .code-chip:hover { background: #065f46; }
-    .code-chip.copied { color: #fff; border-color: #fff; }
+    .provider-cell { color: #f1f5f9; font-weight: 600; }
+    .domain-cell { color: #475569; font-family: monospace; font-size: 12px; }
+    .code-cell { font-family: monospace; font-size: 12px; color: #10b981; }
+    .nocode-cell { font-size: 11px; color: #334155; font-style: italic; }
 
     .no-vouchers { color: #475569; font-size: 13px; }
   </style>
@@ -122,7 +101,7 @@
     <input type="url" id="source-url" placeholder="https://example.com/vouchers">
     <p class="hint">
       Visit this page while the extension is active — it will automatically detect
-      all providers, their websites, discounts, and codes. No configuration needed.
+      all providers, their websites, discounts, and codes across all sub-pages.
     </p>
     <div class="btn-row">
       <button id="save-btn">Save</button>
@@ -131,9 +110,10 @@
     </div>
   </section>
 
-  <section id="voucher-section">
+  <section>
     <h2>Stored Vouchers</h2>
     <p id="voucher-meta"></p>
+    <input type="search" id="search" placeholder="Search providers…" style="display:none">
     <div id="voucher-list"></div>
   </section>
 
