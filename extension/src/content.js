@@ -236,14 +236,23 @@
   // --- Source extraction ---
 
   async function runMaoExtraction() {
-    const { lastMaoScrape, maoScraping } = await chrome.storage.local.get(["lastMaoScrape", "maoScraping"]);
+    const { lastMaoScrape, maoScraping, maoScrapingStarted } = await chrome.storage.local.get(["lastMaoScrape", "maoScraping", "maoScrapingStarted"]);
 
-    // Skip if another tab is already scraping
-    if (maoScraping) return;
+    // Auto-clear stale scraping lock (older than 10 min = hung/crashed)
+    if (maoScraping && maoScrapingStarted && Date.now() - maoScrapingStarted > 10 * 60 * 1000) {
+      await chrome.storage.local.remove(["maoScraping", "maoScrapingStarted"]);
+    } else if (maoScraping) {
+      setBanner("Scan läuft bereits in einem anderen Tab…", true);
+      return;
+    }
+
     // Skip if scraped recently
-    if (lastMaoScrape && Date.now() - lastMaoScrape < SCRAPE_COOLDOWN_MS) return;
+    if (lastMaoScrape && Date.now() - lastMaoScrape < SCRAPE_COOLDOWN_MS) {
+      setBanner("Vouchers sind aktuell ✓", true);
+      return;
+    }
 
-    await chrome.storage.local.set({ maoScraping: true });
+    await chrome.storage.local.set({ maoScraping: true, maoScrapingStarted: Date.now() });
 
     try {
       const vouchers = await extractMaoVouchers();
@@ -251,9 +260,11 @@
         await chrome.storage.local.set({ vouchers, lastMaoScrape: Date.now() });
         chrome.runtime.sendMessage({ type: "VOUCHERS_UPDATED", count: vouchers.length });
         setBanner(`${vouchers.length} Anbieter importiert ✓`, true);
+      } else {
+        setBanner("Keine Angebote gefunden", true);
       }
     } finally {
-      await chrome.storage.local.remove("maoScraping");
+      await chrome.storage.local.remove(["maoScraping", "maoScrapingStarted"]);
     }
   }
 
