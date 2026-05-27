@@ -2,13 +2,7 @@ const REFRESH_ALARM = "coupon-refresh";
 const MAO_HOSTNAME = "mitarbeiterangebote.de";
 const COND_RE = /(?:ab|mindest(?:ens|\.?)|bei|gültig|nur|bis|max\.?|gilt)\s+[^,\n]{3,80}/i;
 
-const DEFAULT_SOURCES = [
-  { id: "gutscheinpony", url: "https://www.gutscheinpony.com/gutscheine/", label: "Gutscheinpony", type: "generic", enabled: false },
-  { id: "coupons-de", url: "https://www.coupons.de/", label: "Coupons.de", type: "generic", enabled: false },
-  { id: "mydealz", url: "https://www.mydealz.de/gutscheine", label: "MyDealz Coupons", type: "generic", enabled: false },
-  { id: "shoop", url: "https://www.shoop.de/gutscheine/", label: "Shoop", type: "generic", enabled: false },
-  { id: "snipster", url: "https://www.snipster.de/", label: "Snipster", type: "generic", enabled: false },
-];
+const DEFAULT_SOURCES = [];
 
 chrome.runtime.onInstalled.addListener(async () => {
   chrome.action.setBadgeBackgroundColor({ color: "#10b981" });
