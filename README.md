@@ -21,7 +21,7 @@ A browser extension that automatically extracts discount vouchers from a configu
 
 ### Safari (macOS)
 
-Requires the full **Xcode** app (not just Command Line Tools). If Xcode is not installed yet, get it from the Mac App Store (free, ~7 GB). If you get `unable to find utility "safari-web-extension-converter"` or `invalid developer directory`, run this first:
+Requires the full **Xcode** app (not just Command Line Tools). If Xcode is not installed yet, get it from the Mac App Store (free, ~7 GB): [Xcode on the App Store](https://apps.apple.com/app/xcode/id497799835). If you get `unable to find utility "safari-web-extension-converter"` or `invalid developer directory`, run this first:
 
 ```bash
 sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
