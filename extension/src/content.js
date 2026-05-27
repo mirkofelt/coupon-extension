@@ -106,7 +106,7 @@
     const seen = new Set();
     return Array.from(doc.querySelectorAll("a[href^='/overview/']"))
       .map((a) => a.getAttribute("href"))
-      .filter((h) => h && !seen.has(h) && seen.add(h));
+      .filter((h) => h && !h.includes("#") && !seen.has(h) && seen.add(h));
   }
 
   async function extractMaoVouchers() {
