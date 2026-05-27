@@ -27,10 +27,16 @@ Requires the full **Xcode** app (not just Command Line Tools). If Xcode is not i
 sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
 ```
 
+If the converter crashes with a plug-in or CoreSimulator error, complete the Xcode first-launch setup first (requires admin password, takes a few minutes):
+
+```bash
+sudo xcodebuild -runFirstLaunch
+```
+
 Then convert and build once:
 
 ```bash
-xcrun safari-web-extension-converter /path/to/coupon-extension/extension --project-location ~/Desktop
+xcrun safari-web-extension-converter extension/ --project-location ~/Desktop
 ```
 
 Open the generated Xcode project, build and run it, then enable the extension in Safari Settings → Extensions.
