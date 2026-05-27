@@ -180,7 +180,7 @@ async function screenshotToolbar(browser, outFile) {
     <div class="extensions-area">
       <div class="ext-icon">
         <img src="data:image/png;base64,${iconB64}" alt="CouponAlert">
-        <span class="badge">6</span>
+        <span class="badge">✓</span>
       </div>
       <span class="puzzle">⊞</span>
     </div>

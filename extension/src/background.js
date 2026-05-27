@@ -3,6 +3,7 @@ const REFRESH_INTERVAL_MINUTES = 60;
 
 chrome.runtime.onInstalled.addListener(() => {
   chrome.alarms.create(REFRESH_ALARM, { periodInMinutes: REFRESH_INTERVAL_MINUTES });
+  chrome.action.setBadgeBackgroundColor({ color: "#10b981" });
 });
 
 chrome.alarms.onAlarm.addListener((alarm) => {
@@ -30,8 +31,8 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     sendResponse({ ok: true });
   }
   if (msg.type === "VOUCHER_MATCH" && sender.tab?.id) {
-    chrome.action.setBadgeText({ text: "!", tabId: sender.tab.id });
     chrome.action.setBadgeBackgroundColor({ color: "#10b981", tabId: sender.tab.id });
+    chrome.action.setBadgeText({ text: "✓", tabId: sender.tab.id });
   }
   if (msg.type === "GET_VOUCHERS") {
     chrome.storage.local.get("vouchers").then(({ vouchers }) => {
