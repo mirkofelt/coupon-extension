@@ -1,0 +1,48 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: package-lock.json
+
+      - run: npm ci
+
+      - name: Stamp version from tag into manifest
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          jq --arg v "$VERSION" '.version = $v' extension/manifest.json > /tmp/manifest.json
+          mv /tmp/manifest.json extension/manifest.json
+
+      - run: npm run build
+
+      - name: Package extension zip
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          cd extension
+          zip -r "../coupon-alert-v${VERSION}.zip" \
+            manifest.json \
+            popup.html \
+            options.html \
+            icons/ \
+            dist/
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: "coupon-alert-v*.zip"
+          generate_release_notes: true
