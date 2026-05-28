@@ -20,8 +20,9 @@
       document.body?.appendChild(el);
     }
     el.textContent = `CouponAlert: ${text}`;
-    el.style.borderLeftColor = done ? "#10b981" : "#f59e0b";
-    if (done) setTimeout(() => el?.remove(), 4000);
+    const isError = done && el.textContent.includes("✗");
+    el.style.borderLeftColor = done ? (isError ? "#ef4444" : "#10b981") : "#f59e0b";
+    if (done) setTimeout(() => el?.remove(), isError ? 8000 : 4000);
   }
 
   // --- Site-specific: mitarbeiterangebote.de ---

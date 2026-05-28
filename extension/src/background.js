@@ -26,6 +26,13 @@ const DEFAULT_SOURCES = [
   },
 ];
 
+chrome.notifications.onClicked.addListener((notifId) => {
+  if (notifId.startsWith("visit_")) {
+    const url = atob(notifId.slice(6));
+    chrome.tabs.create({ url });
+  }
+});
+
 chrome.runtime.onInstalled.addListener(async () => {
   chrome.action.setBadgeBackgroundColor({ color: "#10b981" });
   chrome.alarms.create(REFRESH_ALARM, { periodInMinutes: 30 });
@@ -88,6 +95,20 @@ async function backgroundRefreshAll() {
 }
 
 async function refreshSource(source) {
+  // MAO sources require an active browser session — can't scrape from background.
+  // Instead, notify the user to visit the page so the content script can scrape.
+  if (source.url.includes(MAO_HOSTNAME)) {
+    const label = source.label ?? new URL(source.url).hostname;
+    const notifId = "visit_" + btoa(source.url);
+    chrome.notifications.create(notifId, {
+      type: "basic",
+      iconUrl: "icons/icon-48.png",
+      title: "CouponAlert – Vouchers aktualisieren",
+      message: `Besuche "${label}" um deine Vouchers zu aktualisieren. Klicken zum Öffnen.`,
+    });
+    return;
+  }
+
   chrome.action.setBadgeText({ text: "↻" });
   chrome.action.setBadgeBackgroundColor({ color: "#f59e0b" });
 
