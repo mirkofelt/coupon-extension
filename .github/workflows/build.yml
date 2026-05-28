@@ -7,7 +7,60 @@ on:
     branches: [develop]
 
 jobs:
+  check-version:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check version follows semver and is not already released
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION=$(jq -r '.version' extension/manifest.json)
+          PKG_VERSION=$(jq -r '.version' package.json)
+
+          # Validate semver format (MAJOR.MINOR.PATCH)
+          if ! echo "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::error::Version '$VERSION' in extension/manifest.json is not valid semver (expected MAJOR.MINOR.PATCH)."
+            exit 1
+          fi
+
+          # Ensure package.json and manifest.json versions are in sync
+          if [ "$VERSION" != "$PKG_VERSION" ]; then
+            echo "::error::Version mismatch: extension/manifest.json has '$VERSION' but package.json has '$PKG_VERSION'. Keep them in sync."
+            exit 1
+          fi
+
+          TAG="v${VERSION}"
+
+          # Block merging an already-released version
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            echo "::error::Release $TAG already exists. Bump the version in extension/manifest.json and package.json before merging."
+            exit 1
+          fi
+
+          # Warn if the new version is not strictly greater than the latest release
+          LATEST=$(gh release list --limit 1 --json tagName --jq '.[0].tagName // ""')
+          if [ -n "$LATEST" ]; then
+            LATEST_VER="${LATEST#v}"
+            if ! node -e "
+              const [a1,a2,a3] = '$VERSION'.split('.').map(Number);
+              const [b1,b2,b3] = '$LATEST_VER'.split('.').map(Number);
+              const newer = a1 > b1 || (a1 === b1 && a2 > b2) || (a1 === b1 && a2 === b2 && a3 > b3);
+              if (!newer) { console.error('Version $VERSION is not greater than latest release $LATEST_VER'); process.exit(1); }
+            "; then
+              echo "::error::Version '$VERSION' must be greater than the latest release '$LATEST_VER'. Follow semantic versioning: bump PATCH for fixes, MINOR for new features, MAJOR for breaking changes."
+              exit 1
+            fi
+          fi
+
+          echo "Version $TAG is valid semver, synced, and not yet released — OK."
+
   build:
+    needs: [check-version]
+    if: always() && (needs.check-version.result == 'success' || needs.check-version.result == 'skipped')
+
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

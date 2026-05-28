@@ -374,7 +374,7 @@
     const kept = (existing ?? []).filter((v) => v.sourceUrl !== sourceUrl);
     const updated = [...kept, ...tagged];
     await chrome.storage.local.set({ vouchers: updated });
-    chrome.runtime.sendMessage({ type: "VOUCHERS_UPDATED", count: updated.length });
+    chrome.runtime.sendMessage({ type: "VOUCHERS_UPDATED", count: updated.length }).catch(() => {});
     setBanner(`${tagged.length} Anbieter importiert ✓`, true);
   }
 
@@ -383,6 +383,7 @@
   async function getVouchers() {
     return new Promise((resolve) => {
       chrome.runtime.sendMessage({ type: "GET_VOUCHERS" }, (res) => {
+        if (chrome.runtime.lastError) { resolve([]); return; }
         resolve(res?.vouchers ?? []);
       });
     });
@@ -446,7 +447,7 @@
     }
 
     if (injected.size > 0) {
-      chrome.runtime.sendMessage({ type: "VOUCHER_MATCH" });
+      chrome.runtime.sendMessage({ type: "VOUCHER_MATCH" }).catch(() => {});
     }
   }
 

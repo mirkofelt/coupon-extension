@@ -10,13 +10,31 @@ A browser extension that automatically extracts discount vouchers from a configu
 - **One-click copy**: Click the badge to copy the code to your clipboard
 - **Popup overview**: Lists all stored providers with their discounts and copy buttons
 
+## Build
+
+Requires Node.js. Install dependencies and build once before loading:
+
+```bash
+npm install
+npm run build
+```
+
+For active development with auto-rebuild on file changes:
+
+```bash
+npm run watch
+```
+
+The build output goes to `extension/dist/`. The `extension/` folder (including `dist/`) is what you load into the browser.
+
 ## Installation
 
 ### Chrome / Edge / Brave
 
-1. Open `chrome://extensions`
-2. Enable **Developer mode** (top right)
-3. Click **Load unpacked** → select the `extension/` folder
+1. Run `npm install && npm run build` (see above)
+2. Open `chrome://extensions`
+3. Enable **Developer mode** (top right)
+4. Click **Load unpacked** → select the `extension/` folder
 4. Open the extension options and configure the source URL and CSS selectors
 
 ### Safari (macOS)
@@ -33,13 +51,15 @@ If the converter crashes with a plug-in or CoreSimulator error, complete the Xco
 sudo xcodebuild -runFirstLaunch
 ```
 
-Then convert and build once:
+Then build the extension and generate the Xcode project in one step:
 
 ```bash
-xcrun safari-web-extension-converter extension/ --project-location ~/Desktop
+npm install && npm run build:safari
 ```
 
-Open the generated Xcode project, build and run it, then enable the extension in Safari Settings → Extensions.
+`npm run build:safari` compiles the extension and automatically runs `xcrun safari-web-extension-converter` to generate the Xcode project in `safari-xcode/`.
+
+Open `safari-xcode/CouponAlert.xcodeproj`, build and run it, then enable the extension in Safari Settings → Extensions.
 
 ## Configuration
 
@@ -52,6 +72,31 @@ Set the URL of your voucher source page. That's it — no CSS selectors, no manu
 1. When you visit the configured source URL, the content script scans the page using your selectors and saves all found vouchers to local extension storage.
 2. On every other page, the content script scans visible text for provider names matching stored vouchers and injects a badge next to matching elements.
 3. The background service worker sets a reminder badge on the extension icon after 60 minutes, prompting you to revisit the source page to refresh vouchers.
+
+## Development: Resetting Extension Storage in Safari
+
+Safari extension storage is isolated per extension ID and persists across reloads. During development, stale voucher data or config can get in the way after code changes.
+
+**Option 1 — via the Web Inspector console** (quickest)
+
+1. In Safari, go to **Develop → Web Extension Background Pages → CouponAlert**
+2. In the console that opens, run:
+
+```js
+chrome.storage.local.clear(() => console.log('storage cleared'));
+```
+
+**Option 2 — via Safari's privacy settings** (nuclear option)
+
+1. Safari → **Settings → Extensions → CouponAlert**
+2. Click **Uninstall** (removes the extension and all its data)
+3. Rebuild in Xcode and reinstall
+
+**Option 3 — from the Xcode app container**
+
+Each build gets a fresh app container. Running the app again from Xcode (Product → Run) with a clean build (`⇧⌘K` first) resets the extension's storage automatically.
+
+> **Tip:** The Web Inspector option is the fastest during active development — no rebuild needed.
 
 ## Privacy
 
