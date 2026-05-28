@@ -37,10 +37,19 @@ chrome.runtime.onInstalled.addListener(async () => {
   chrome.action.setBadgeBackgroundColor({ color: "#10b981" });
   chrome.alarms.create(REFRESH_ALARM, { periodInMinutes: 30 });
 
-  const { sources } = await chrome.storage.sync.get("sources");
-  if (!sources) {
-    await chrome.storage.sync.set({ sources: DEFAULT_SOURCES, refreshIntervalHours: 24 });
-  }
+  const { sources, refreshIntervalHours } = await chrome.storage.sync.get(["sources", "refreshIntervalHours"]);
+  const existing = sources ?? [];
+  const merged = [
+    ...DEFAULT_SOURCES.map((def) => {
+      const saved = existing.find((s) => s.id === def.id);
+      return saved ? { ...def, ...saved } : def;
+    }),
+    ...existing.filter((s) => !DEFAULT_SOURCES.some((d) => d.id === s.id)),
+  ];
+  await chrome.storage.sync.set({
+    sources: merged,
+    ...(refreshIntervalHours == null ? { refreshIntervalHours: 24 } : {}),
+  });
 });
 
 chrome.alarms.onAlarm.addListener((alarm) => {
