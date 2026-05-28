@@ -53,6 +53,31 @@ Set the URL of your voucher source page. That's it — no CSS selectors, no manu
 2. On every other page, the content script scans visible text for provider names matching stored vouchers and injects a badge next to matching elements.
 3. The background service worker sets a reminder badge on the extension icon after 60 minutes, prompting you to revisit the source page to refresh vouchers.
 
+## Development: Resetting Extension Storage in Safari
+
+Safari extension storage is isolated per extension ID and persists across reloads. During development, stale voucher data or config can get in the way after code changes.
+
+**Option 1 — via the Web Inspector console** (quickest)
+
+1. In Safari, go to **Develop → Web Extension Background Pages → CouponAlert**
+2. In the console that opens, run:
+
+```js
+chrome.storage.local.clear(() => console.log('storage cleared'));
+```
+
+**Option 2 — via Safari's privacy settings** (nuclear option)
+
+1. Safari → **Settings → Extensions → CouponAlert**
+2. Click **Uninstall** (removes the extension and all its data)
+3. Rebuild in Xcode and reinstall
+
+**Option 3 — from the Xcode app container**
+
+Each build gets a fresh app container. Running the app again from Xcode (Product → Run) with a clean build (`⇧⌘K` first) resets the extension's storage automatically.
+
+> **Tip:** The Web Inspector option is the fastest during active development — no rebuild needed.
+
 ## Privacy
 
 All data stays local. No analytics, no external requests, no data leaves your browser.

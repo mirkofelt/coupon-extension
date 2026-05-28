@@ -8,6 +8,7 @@ let searchQuery = "";
 async function load() {
   translatePage();
   document.title = t("optionsTitle");
+  document.getElementById("ext-version").textContent = `v${chrome.runtime.getManifest().version}`;
   const { sources, refreshIntervalHours, blockedKeywords } = await chrome.storage.sync.get(["sources", "refreshIntervalHours", "blockedKeywords"]);
   document.getElementById("interval-hours").value = refreshIntervalHours ?? 24;
   document.getElementById("blocked-keywords").value = (blockedKeywords ?? []).join("\n");

@@ -7,7 +7,28 @@ on:
     branches: [main]
 
 jobs:
+  check-version:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check version not already released
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION=$(jq -r '.version' extension/manifest.json)
+          TAG="v${VERSION}"
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            echo "::error::Release $TAG already exists. Bump the version in extension/manifest.json before merging."
+            exit 1
+          fi
+          echo "Version $TAG is not yet released — OK."
+
   build:
+    needs: [check-version]
+    if: always() && (needs.check-version.result == 'success' || needs.check-version.result == 'skipped')
+
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
