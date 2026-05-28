@@ -1,10 +1,19 @@
+import { scrapeAdac } from "./scrapers/adac.js";
+import { scrapeMao } from "./scrapers/mao.js";
+import { scrapeGeneric } from "./scrapers/generic.js";
+
 const REFRESH_ALARM = "coupon-refresh";
 const MAO_HOSTNAME = "mitarbeiterangebote.de";
 const ADAC_HOSTNAME = "adac.de";
-const COND_RE = /(?:ab|mindest(?:ens|\.?)|bei|gültig|nur|bis|max\.?|gilt)\s+[^,\n]{3,80}/i;
 
 const DEFAULT_SOURCES = [
-  { url: "https://www.adac.de/mitgliedschaft/vorteilswelt/vorteilssuche/", enabled: true },
+  {
+    id: "adac_vorteilswelt",
+    url: "https://www.adac.de/mitgliedschaft/vorteilswelt/vorteilssuche/",
+    label: "ADAC Vorteilswelt",
+    type: "adac",
+    enabled: false,
+  },
 ];
 
 chrome.runtime.onInstalled.addListener(async () => {
@@ -56,8 +65,6 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     });
   }
 });
-
-// --- Background refresh ---
 
 async function backgroundRefreshAll() {
   const { sources, refreshIntervalHours } = await chrome.storage.sync.get(["sources", "refreshIntervalHours"]);
@@ -118,263 +125,4 @@ async function refreshSource(source) {
   }
 
   chrome.runtime.sendMessage({ type: "VOUCHERS_UPDATED", count: updated.length }).catch(() => {});
-}
-
-// --- MAO scraper ---
-
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-
-let _httpErrors = { rateLimit: 0, other: {} };
-function _resetHttpErrors() { _httpErrors = { rateLimit: 0, other: {} }; }
-function _checkHttpErrors() {
-  if (_httpErrors.rateLimit > 0)
-    throw Object.assign(new Error(), { reason: "rate_limited", count: _httpErrors.rateLimit });
-  const firstStatus = Object.keys(_httpErrors.other)[0];
-  if (firstStatus)
-    throw Object.assign(new Error(), { reason: "http_error", status: parseInt(firstStatus), count: _httpErrors.other[firstStatus] });
-}
-
-async function fetchDoc(url, retries = 2) {
-  for (let attempt = 0; attempt <= retries; attempt++) {
-    try {
-      const res = await fetch(url, { credentials: "include" });
-      if (res.status === 429) {
-        if (attempt < retries) { await sleep(3000 * (attempt + 1)); continue; }
-        _httpErrors.rateLimit++;
-        return null;
-      }
-      if (!res.ok) {
-        _httpErrors.other[res.status] = (_httpErrors.other[res.status] ?? 0) + 1;
-        return null;
-      }
-      return new DOMParser().parseFromString(await res.text(), "text/html");
-    } catch {
-      return null;
-    }
-  }
-  return null;
-}
-
-function extractListItems(doc, origin) {
-  return Array.from(doc.querySelectorAll(".cbg3-list-item[data-id]")).map((card) => {
-    const href = card.querySelector("a[href*='/offer/']")?.getAttribute("href") ?? null;
-    return {
-      provider: card.querySelector("h3")?.textContent?.replace(/\s*[-–]\s*$/, "").trim() ?? null,
-      discountText: card.querySelector(".cbg3-list-item--discount p")?.textContent?.trim() ?? null,
-      offerPath: href ? href.replace(/\/cat\/\d+$/, "") : null,
-    };
-  }).filter((o) => o.provider && o.offerPath);
-}
-
-async function scrapeMao(sourceUrl) {
-  _resetHttpErrors();
-  const origin = new URL(sourceUrl).origin;
-  const homeDoc = await fetchDoc(origin + "/");
-  if (!homeDoc) throw Object.assign(new Error(), { reason: "network" });
-
-  const seen = new Set();
-  const overviewUrls = Array.from(homeDoc.querySelectorAll("a[href^='/overview/']"))
-    .map((a) => a.getAttribute("href"))
-    .filter((h) => h && !h.includes("#") && !seen.has(h) && seen.add(h))
-    .map((h) => origin + h);
-
-  if (overviewUrls.length === 0) throw Object.assign(new Error(), { reason: "not_logged_in" });
-
-  let offers = [];
-  for (const url of overviewUrls) {
-    const doc = await fetchDoc(url);
-    if (doc) offers = offers.concat(extractListItems(doc, origin));
-  }
-
-  if (offers.length === 0) throw Object.assign(new Error(), { reason: "no_items" });
-
-  const seenPaths = new Set();
-  offers = offers.filter((o) => {
-    if (seenPaths.has(o.offerPath)) return false;
-    seenPaths.add(o.offerPath);
-    return true;
-  });
-  const seenProviders = new Set();
-  offers = offers.filter((o) => {
-    const key = o.provider?.toLowerCase().replace(/\s+/g, "") ?? o.offerPath;
-    if (seenProviders.has(key)) return false;
-    seenProviders.add(key);
-    return true;
-  });
-
-  const { blockedKeywords } = await chrome.storage.sync.get("blockedKeywords");
-  if (blockedKeywords?.length) {
-    offers = offers.filter((o) => {
-      const name = (o.provider ?? "").toLowerCase();
-      return !blockedKeywords.some((kw) => name.includes(kw));
-    });
-  }
-
-  const vouchers = [];
-  const BATCH = 2;
-  const BATCH_DELAY = 2000;
-  for (let i = 0; i < offers.length; i += BATCH) {
-    if (i > 0) await sleep(BATCH_DELAY);
-    const results = await Promise.all(
-      offers.slice(i, i + BATCH).map(async (offer) => {
-        const doc = await fetchDoc(origin + offer.offerPath);
-        if (!doc) return null;
-
-        const extEl = doc.querySelector("[data-href^='http']");
-        const providerUrl = extEl?.dataset?.href ?? null;
-        let providerDomain = null;
-        if (providerUrl) {
-          try { providerDomain = new URL(providerUrl).hostname.replace(/^www\./, ""); } catch {}
-        }
-
-        let code = null;
-        const couponBtn = doc.querySelector("[data-url*='/api/coupon'], [data-salesoptionid]");
-        if (couponBtn) {
-          const dataUrl = couponBtn.dataset.url ?? "";
-          const ac = new URLSearchParams(dataUrl.split("?")[1] ?? "").get("ac");
-          const offerId = couponBtn.dataset.offerid;
-          const saleOptionId = couponBtn.dataset.salesoptionid;
-          if (ac && offerId && saleOptionId) {
-            try {
-              const res = await fetch(`${origin}/api/coupon?ac=${ac}`, {
-                method: "POST", credentials: "include",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ offerId, saleOptionId }),
-              });
-              const data = await res.json();
-              if (data.success && data.code?.length > 0) code = data.code[0];
-            } catch {}
-          }
-        }
-
-        let conditions = null;
-        for (const el of doc.querySelectorAll("p, li")) {
-          const t = el.textContent.trim();
-          if (t.length > 10 && t.length < 200 && COND_RE.test(t)) { conditions = t.slice(0, 150); break; }
-        }
-
-        const discounts = [];
-        if (offer.discountText) {
-          discounts.push({ text: offer.discountText, code: code ?? null, conditions: conditions ?? null });
-        } else if (code) {
-          discounts.push({ text: "Gutschein", code, conditions });
-        }
-
-        if (discounts.length === 0 && !providerDomain) return null;
-
-        return {
-          provider: offer.provider, providerUrl, providerDomain,
-          offerUrl: origin + offer.offerPath, discounts, extractedAt: Date.now(),
-        };
-      })
-    );
-    vouchers.push(...results.filter(Boolean));
-  }
-
-  _checkHttpErrors();
-  return vouchers;
-}
-
-// --- ADAC scraper ---
-
-const ADAC_BFF_URL = "https://www.adac.de/bff/";
-const ADAC_OFFER_BASE = "https://www.adac.de/mitgliedschaft/vorteilswelt/vorteilssuche/";
-const ADAC_DOMAIN_RE = /\b([a-z0-9-]+\.(de|com|eu|at|ch|net|org))\b/i;
-const ADAC_SUFFIX_RE = /\s+(?:\d[\d,.]* ?%|bis zu|ab |€|\d+ ?€|Rabatt|Ersparnis|Vorteil|Gutschein).*/i;
-
-async function scrapeAdac() {
-  const query = `{ loyaltySearch(params: { kategorien: [], rows: "500", sort: POPULAR_ASC }) { numResult items { id headline description discount } } }`;
-  let data;
-  try {
-    const res = await fetch(ADAC_BFF_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ query }),
-    });
-    if (!res.ok) throw Object.assign(new Error(), { reason: "http_error", status: res.status, count: 1 });
-    data = await res.json();
-  } catch (err) {
-    if (err.reason) throw err;
-    throw Object.assign(new Error(), { reason: "network" });
-  }
-
-  const items = data?.data?.loyaltySearch?.items;
-  if (!items?.length) throw Object.assign(new Error(), { reason: "no_items" });
-
-  const { blockedKeywords } = await chrome.storage.sync.get("blockedKeywords");
-
-  return items
-    .filter((item) => {
-      if (!blockedKeywords?.length) return true;
-      const name = item.headline.toLowerCase();
-      return !blockedKeywords.some((kw) => name.includes(kw));
-    })
-    .map((item) => {
-      const domainMatch = item.headline.match(ADAC_DOMAIN_RE);
-      const providerDomain = domainMatch ? domainMatch[1].toLowerCase() : null;
-      const provider = item.headline.replace(ADAC_SUFFIX_RE, "").trim();
-      return {
-        provider,
-        providerUrl: null,
-        providerDomain,
-        offerUrl: `${ADAC_OFFER_BASE}${item.id}/`,
-        discounts: [{ text: item.discount || item.headline, code: null, conditions: null }],
-        extractedAt: Date.now(),
-      };
-    });
-}
-
-// --- Generic scraper ---
-
-const DISCOUNT_SIGNAL = /(\d+[\.,]?\d*\s*%|\d+[\.,]?\d*\s*€|€\s*\d+[\.,]?\d*|gutschein|rabatt|voucher|cashback|bonus|sparen|vorteil|code\s*[:：]|deal)/i;
-const CODE_PATTERN = /\b([A-Z][A-Z0-9]{3,19})\b/;
-const CONDITION_PATTERN = /(?:ab|mindest(?:ens|\.?)|bei|gültig|nur|bis|max\.?)\s+[^,\n]{3,60}/i;
-
-async function scrapeGeneric(sourceUrl) {
-  const doc = await fetchDoc(sourceUrl);
-  if (!doc) return [];
-
-  const origin = new URL(sourceUrl).origin;
-  const seen = new Set();
-  const vouchers = [];
-
-  for (const link of doc.querySelectorAll("a[href]")) {
-    let domain;
-    try {
-      const u = new URL(link.href, sourceUrl);
-      if (u.origin === origin || !u.protocol.startsWith("http")) continue;
-      domain = u.hostname.replace(/^www\./, "");
-    } catch { continue; }
-
-    if (seen.has(domain)) continue;
-
-    let node = link;
-    let container = null;
-    for (let i = 0; i < 8; i++) {
-      if (!node) break;
-      if (DISCOUNT_SIGNAL.test(node.textContent)) { container = node; break; }
-      node = node.parentElement;
-    }
-    if (!container) continue;
-
-    const discounts = [];
-    for (const line of (container.innerText || container.textContent).split(/[\n\r]+/).map((l) => l.trim()).filter((l) => l.length > 4 && l.length < 250)) {
-      if (!DISCOUNT_SIGNAL.test(line)) continue;
-      discounts.push({ text: line, code: line.match(CODE_PATTERN)?.[1] ?? null, conditions: line.match(CONDITION_PATTERN)?.[0] ?? null });
-      if (discounts.length >= 5) break;
-    }
-    if (discounts.length === 0) continue;
-
-    const heading = container.querySelector("h1,h2,h3,h4,h5,strong,b,[class*='title'],[class*='name'],[class*='brand']");
-    const provider = (heading?.textContent?.trim() || link.textContent?.trim())?.replace(/\s+/g, " ").slice(0, 100);
-    if (!provider || provider.length < 2) continue;
-
-    seen.add(domain);
-    vouchers.push({
-      provider, providerUrl: link.href, providerDomain: domain,
-      offerUrl: null, discounts, extractedAt: Date.now(),
-    });
-  }
-
-  return vouchers;
 }

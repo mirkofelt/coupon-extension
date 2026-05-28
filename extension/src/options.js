@@ -133,7 +133,7 @@ document.getElementById("add-confirm-btn").addEventListener("click", async () =>
   }
 
   const id = "custom_" + Date.now();
-  const type = url.includes("mitarbeiterangebote.de") ? "mao" : "generic";
+  const type = url.includes("mitarbeiterangebote.de") ? "mao" : url.includes("adac.de") ? "adac" : "generic";
   const newSource = { id, url, label, type, enabled: true };
   const updated = [...existing, newSource];
   await chrome.storage.sync.set({ sources: updated });
