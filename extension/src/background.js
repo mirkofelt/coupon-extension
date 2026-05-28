@@ -117,7 +117,7 @@ async function refreshSource(source) {
         type: "basic",
         iconUrl: "icons/icon-48.png",
         title: "CouponAlert",
-        message: `Bitte bei "${source.label ?? source.url}" einloggen, um Vouchers zu laden.`,
+        message: `Please log in to "${source.label ?? source.url}" to load vouchers.`,
       });
     }
     chrome.runtime.sendMessage({

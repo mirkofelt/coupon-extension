@@ -202,7 +202,7 @@ function stopRefreshTimer() {
   setStatus(t("refreshDone"));
 }
 
-// --- Eigene Quelle hinzufügen ---
+// --- Add custom source ---
 
 document.getElementById("add-btn").addEventListener("click", () => {
   document.getElementById("add-form").style.display = "block";
@@ -241,7 +241,7 @@ document.getElementById("add-confirm-btn").addEventListener("click", async () =>
   setStatus(t("sourceAdded"));
 });
 
-// --- Gesperrte Kategorien ---
+// --- Blocked categories ---
 
 document.getElementById("save-blocked-btn").addEventListener("click", async () => {
   const raw = document.getElementById("blocked-keywords").value;
@@ -250,7 +250,7 @@ document.getElementById("save-blocked-btn").addEventListener("click", async () =
   setStatus(t("saved"));
 });
 
-// --- Aktualisierungsintervall ---
+// --- Refresh interval ---
 
 document.getElementById("save-interval-btn").addEventListener("click", async () => {
   const hours = parseInt(document.getElementById("interval-hours").value) || 24;
@@ -258,7 +258,7 @@ document.getElementById("save-interval-btn").addEventListener("click", async () 
   setStatus(t("saved"));
 });
 
-// --- Alle Coupons löschen ---
+// --- Clear all vouchers ---
 
 document.getElementById("clear-btn").addEventListener("click", async () => {
   await chrome.storage.local.remove(["vouchers"]);
@@ -269,7 +269,7 @@ document.getElementById("clear-btn").addEventListener("click", async () => {
   setStatus(t("cleared"));
 });
 
-// --- Suche ---
+// --- Search ---
 
 document.getElementById("search").addEventListener("input", (e) => {
   searchQuery = e.target.value.toLowerCase();
@@ -277,7 +277,7 @@ document.getElementById("search").addEventListener("input", (e) => {
   renderPage();
 });
 
-// --- Coupon-Liste ---
+// --- Voucher list ---
 
 async function renderVoucherList() {
   const { vouchers } = await chrome.storage.local.get("vouchers");
@@ -462,7 +462,7 @@ function moveTooltip(e) {
 
 function hideTooltip() { tooltip.classList.remove("visible"); }
 
-// --- Hilfsfunktionen ---
+// --- Helpers ---
 
 function setStatus(msg) {
   const el = document.getElementById("status");
