@@ -142,7 +142,9 @@ function buildPredefinedItem(source) {
     const { sources } = await chrome.storage.sync.get("sources");
     const s = sources?.find((x) => x.id === source.id);
     if (!s || (s.requiresUrl && !s.url)) return;
-    if (!confirm(t("confirmRefresh", { label: s.label }))) return;
+    const { vouchers: existing } = await chrome.storage.local.get("vouchers");
+    const hasVouchers = (existing ?? []).some((v) => v.sourceUrl === s.url);
+    if (hasVouchers && !confirm(t("confirmRefresh", { label: s.label }))) return;
     startRefreshTimer();
     chrome.runtime.sendMessage({ type: "REFRESH_SOURCE", source: s }, (res) => {
       if (res?.openedTab) {
@@ -191,7 +193,9 @@ function buildCustomItem(source) {
     const { sources } = await chrome.storage.sync.get("sources");
     const s = sources?.find((x) => x.id === source.id);
     if (!s) return;
-    if (!confirm(t("confirmRefresh", { label: s.label }))) return;
+    const { vouchers: existing } = await chrome.storage.local.get("vouchers");
+    const hasVouchers = (existing ?? []).some((v) => v.sourceUrl === s.url);
+    if (hasVouchers && !confirm(t("confirmRefresh", { label: s.label }))) return;
     startRefreshTimer();
     chrome.runtime.sendMessage({ type: "REFRESH_SOURCE", source: s }, () => {
       stopRefreshTimer();
