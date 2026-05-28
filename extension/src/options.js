@@ -218,8 +218,8 @@ document.getElementById("add-cancel-btn").addEventListener("click", () => {
 
 document.getElementById("add-confirm-btn").addEventListener("click", async () => {
   const url = document.getElementById("add-url").value.trim();
-  const label = document.getElementById("add-label").value.trim() || new URL(url).hostname;
   if (!url) return;
+  const label = document.getElementById("add-label").value.trim() || new URL(url).hostname;
 
   const { sources } = await chrome.storage.sync.get("sources");
   const existing = sources ?? [];

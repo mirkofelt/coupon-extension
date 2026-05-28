@@ -27,6 +27,13 @@ async function init() {
 
   if (!vouchers || vouchers.length === 0) {
     empty.style.display = "block";
+    if (enabledSources.length === 0) {
+      sourceLinksEl.innerHTML = `<a href="#" id="empty-settings-link">${t("btnSettings")}</a>`;
+      document.getElementById("empty-settings-link").addEventListener("click", (e) => {
+        e.preventDefault();
+        chrome.tabs.create({ url: chrome.runtime.getURL("options.html") });
+      });
+    }
     return;
   }
 
@@ -131,7 +138,7 @@ function renderMatch(container, voucher, sourceLabels = {}) {
 }
 
 document.getElementById("settings-btn").addEventListener("click", () => {
-  chrome.runtime.openOptionsPage();
+  chrome.tabs.create({ url: chrome.runtime.getURL("options.html") });
 });
 
 init();
