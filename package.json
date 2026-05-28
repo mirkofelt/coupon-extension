@@ -6,6 +6,9 @@
   "scripts": {
     "build": "node scripts/build.js",
     "watch": "node scripts/build.js --watch",
+    "build:safari": "node scripts/build-safari.js",
+    "watch:safari": "node scripts/build-safari.js --watch",
+    "build:all": "node scripts/build.js && node scripts/build-safari.js",
     "screenshot": "node scripts/screenshot.js"
   },
   "dependencies": {

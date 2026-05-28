@@ -1,9 +1,28 @@
 import { t, translatePage } from "./i18n.js";
 
+function openSettings() {
+  // openOptionsPage() is more reliable across browsers (Chrome MV3 + Safari).
+  // chrome.tabs.create() in a Safari popup context can fail silently.
+  if (chrome.runtime.openOptionsPage) {
+    chrome.runtime.openOptionsPage();
+  } else {
+    chrome.tabs.create({ url: chrome.runtime.getURL("options.html") });
+  }
+}
+
 async function init() {
   translatePage();
-  const { vouchers } = await chrome.storage.local.get("vouchers");
-  const { sources } = await chrome.storage.sync.get("sources");
+
+  let vouchers, sources;
+  try {
+    ({ vouchers } = await chrome.storage.local.get("vouchers"));
+    ({ sources } = await chrome.storage.sync.get("sources"));
+  } catch {
+    // storage unavailable (e.g. Safari iCloud sync not configured)
+    document.getElementById("empty").style.display = "block";
+    return;
+  }
+
   const enabledSources = (sources ?? []).filter((s) => s.enabled);
 
   const countRow = document.getElementById("count-row");
@@ -31,7 +50,7 @@ async function init() {
       sourceLinksEl.innerHTML = `<a href="#" id="empty-settings-link">${t("btnSettings")}</a>`;
       document.getElementById("empty-settings-link").addEventListener("click", (e) => {
         e.preventDefault();
-        chrome.tabs.create({ url: chrome.runtime.getURL("options.html") });
+        openSettings();
       });
     }
     return;
@@ -51,10 +70,12 @@ async function init() {
   numEl.textContent = deduped.length;
   countRow.append(numEl, ` ${t("popupCountSuffix")}`);
 
-  // Find ALL matches for current page from raw list (multiple sources may match)
+  // Find ALL matches for current page from raw list (multiple sources may match).
+  // Use lastFocusedWindow instead of currentWindow: in Safari, currentWindow from
+  // a popup context resolves to the popup's own window, not the browser window.
   let currentDomain = null;
   try {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
     if (tab?.url) currentDomain = new URL(tab.url).hostname.replace(/^www\./, "");
   } catch {}
 
@@ -138,7 +159,7 @@ function renderMatch(container, voucher, sourceLabels = {}) {
 }
 
 document.getElementById("settings-btn").addEventListener("click", () => {
-  chrome.tabs.create({ url: chrome.runtime.getURL("options.html") });
+  openSettings();
 });
 
 init();
