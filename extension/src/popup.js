@@ -1,4 +1,7 @@
+import { t, translatePage } from "./i18n.js";
+
 async function init() {
+  translatePage();
   const { vouchers } = await chrome.storage.local.get("vouchers");
   const { sources } = await chrome.storage.sync.get("sources");
   const enabledSources = (sources ?? []).filter((s) => s.enabled);
@@ -37,7 +40,9 @@ async function init() {
   });
 
   countRow.style.display = "block";
-  countRow.innerHTML = `<strong>${deduped.length}</strong> voucher${deduped.length !== 1 ? "s" : ""} stored`;
+  const numEl = document.createElement("strong");
+  numEl.textContent = deduped.length;
+  countRow.append(numEl, ` ${t("popupCountSuffix")}`);
 
   // Find ALL matches for current page from raw list (multiple sources may match)
   let currentDomain = null;
@@ -91,7 +96,7 @@ function renderMatch(container, voucher, sourceLabels = {}) {
       const btn = document.createElement("button");
       btn.className = "copy-btn";
       btn.textContent = d.code;
-      btn.title = "Click to copy";
+      btn.title = t("clickToCopy");
       btn.addEventListener("click", () => {
         navigator.clipboard.writeText(d.code).then(() => {
           btn.textContent = "✓";
@@ -103,7 +108,7 @@ function renderMatch(container, voucher, sourceLabels = {}) {
     } else {
       const noCode = document.createElement("span");
       noCode.className = "no-code";
-      noCode.textContent = "no code";
+      noCode.textContent = t("noCode");
       row.appendChild(noCode);
     }
 
@@ -113,7 +118,7 @@ function renderMatch(container, voucher, sourceLabels = {}) {
   if (voucher.offerUrl) {
     const link = document.createElement("a");
     link.className = "offer-link";
-    link.textContent = "→ View on source page";
+    link.textContent = t("viewSource");
     link.href = voucher.offerUrl;
     link.addEventListener("click", (e) => {
       e.preventDefault();

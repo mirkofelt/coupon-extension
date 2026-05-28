@@ -1,9 +1,13 @@
+import { t, translatePage } from "./i18n.js";
+
 const PAGE_SIZE = 50;
 let voucherData = [];
 let currentPage = 1;
 let searchQuery = "";
 
 async function load() {
+  translatePage();
+  document.title = t("optionsTitle");
   const { sources, refreshIntervalHours, blockedKeywords } = await chrome.storage.sync.get(["sources", "refreshIntervalHours", "blockedKeywords"]);
   document.getElementById("interval-hours").value = refreshIntervalHours ?? 24;
   document.getElementById("blocked-keywords").value = (blockedKeywords ?? []).join("\n");
@@ -22,11 +26,11 @@ function renderSources(sources) {
 
   const predHeader = document.createElement("div");
   predHeader.className = "source-group-label";
-  predHeader.textContent = "Vordefinierte Quellen";
+  predHeader.textContent = t("predefinedSources");
   container.appendChild(predHeader);
 
   if (predefined.length === 0) {
-    container.insertAdjacentHTML("beforeend", '<p class="no-vouchers" style="margin-bottom:12px">Keine vordefinierten Quellen.</p>');
+    container.insertAdjacentHTML("beforeend", `<p class="no-vouchers" style="margin-bottom:12px">${t("noPredefined")}</p>`);
   } else {
     for (const source of predefined) container.appendChild(buildPredefinedItem(source));
   }
@@ -34,11 +38,11 @@ function renderSources(sources) {
   const custHeader = document.createElement("div");
   custHeader.className = "source-group-label";
   custHeader.style.marginTop = "20px";
-  custHeader.textContent = "Eigene Quellen";
+  custHeader.textContent = t("customSources");
   container.appendChild(custHeader);
 
   if (custom.length === 0) {
-    container.insertAdjacentHTML("beforeend", '<p class="no-vouchers" style="margin-bottom:12px">Noch keine eigenen Quellen hinzugefügt.</p>');
+    container.insertAdjacentHTML("beforeend", `<p class="no-vouchers" style="margin-bottom:12px">${t("noCustom")}</p>`);
   } else {
     for (const source of custom) container.appendChild(buildCustomItem(source));
   }
@@ -48,20 +52,20 @@ function buildLastStr(source) {
   if (source.lastError && source.lastErrorAt) {
     return `${errorLabel(source.lastError)} · ${new Date(source.lastErrorAt).toLocaleString()}`;
   } else if (source.lastRefreshed) {
-    return `Zuletzt synchronisiert ${new Date(source.lastRefreshed).toLocaleString()}`;
+    return `${t("lastSynced")} ${new Date(source.lastRefreshed).toLocaleString()}`;
   }
-  return "Noch nicht synchronisiert";
+  return t("neverSynced");
 }
 
 function errorLabel(code) {
   if (!code) return "";
-  if (code === "not_logged_in") return "⚠ Nicht eingeloggt";
-  if (code === "no_items") return "⚠ Keine Einträge (Seitenstruktur geändert?)";
-  if (code === "network") return "⚠ Netzwerkfehler";
-  if (code === "no_results") return "⚠ Keine Ergebnisse";
-  if (code.startsWith("rate_limited_")) return `⚠ Zu viele Anfragen (429 ×${code.split("_")[2]})`;
-  if (code.startsWith("http_")) { const p = code.split("_"); return `⚠ HTTP ${p[1]} ×${p[2]}`; }
-  return "⚠ Fehler";
+  if (code === "not_logged_in") return t("errNotLoggedIn");
+  if (code === "no_items") return t("errNoItems");
+  if (code === "network") return t("errNetwork");
+  if (code === "no_results") return t("errNoResults");
+  if (code.startsWith("rate_limited_")) return t("errRateLimited", { n: code.split("_")[2] });
+  if (code.startsWith("http_")) { const p = code.split("_"); return t("errHttp", { s: p[1], n: p[2] }); }
+  return t("errGeneric");
 }
 
 function buildPredefinedItem(source) {
@@ -77,13 +81,13 @@ function buildPredefinedItem(source) {
     <div class="source-info">
       <div class="source-label">${escHtml(source.label)}</div>
       ${source.requiresUrl
-        ? `<input type="url" class="source-url-inline" placeholder="https://firma.mitarbeiterangebote.de" value="${escHtml(source.url ?? "")}" data-id="${source.id}">`
+        ? `<input type="url" class="source-url-inline" placeholder="${escHtml(t("placeholderCbUrl"))}" value="${escHtml(source.url ?? "")}" data-id="${source.id}">`
         : `<div class="source-url">${escHtml(source.url)}</div>`
       }
       <div class="source-last${source.lastError ? " source-error" : ""}">${buildLastStr(source)}</div>
     </div>
     <div class="source-actions">
-      <button class="btn-icon btn-refresh" title="Jetzt aktualisieren" data-refresh="${source.id}"${needsUrl ? " disabled" : ""}>↻</button>
+      <button class="btn-icon btn-refresh" title="${t("intervalSection")}" data-refresh="${source.id}"${needsUrl ? " disabled" : ""}>↻</button>
     </div>
   `;
 
@@ -102,7 +106,7 @@ function buildPredefinedItem(source) {
     const { sources } = await chrome.storage.sync.get("sources");
     const s = sources?.find((x) => x.id === source.id);
     if (!s || (s.requiresUrl && !s.url)) return;
-    if (!confirm(`„${s.label}" jetzt aktualisieren?\nDabei werden die gespeicherten Coupons dieser Quelle gelöscht und neu geladen.`)) return;
+    if (!confirm(t("confirmRefresh", { label: s.label }))) return;
     startRefreshTimer();
     chrome.runtime.sendMessage({ type: "REFRESH_SOURCE", source: s }, () => {
       stopRefreshTimer();
@@ -128,8 +132,8 @@ function buildCustomItem(source) {
       <div class="source-last${source.lastError ? " source-error" : ""}">${buildLastStr(source)}</div>
     </div>
     <div class="source-actions">
-      <button class="btn-icon btn-refresh" title="Jetzt aktualisieren" data-refresh="${source.id}">↻</button>
-      <button class="btn-icon" title="Entfernen" data-remove="${source.id}">✕</button>
+      <button class="btn-icon btn-refresh" title="${t("intervalSection")}" data-refresh="${source.id}">↻</button>
+      <button class="btn-icon" title="${t("btnCancel")}" data-remove="${source.id}">✕</button>
     </div>
   `;
 
@@ -141,7 +145,7 @@ function buildCustomItem(source) {
     const { sources } = await chrome.storage.sync.get("sources");
     const s = sources?.find((x) => x.id === source.id);
     if (!s) return;
-    if (!confirm(`„${s.label}" jetzt aktualisieren?\nDabei werden die gespeicherten Coupons dieser Quelle gelöscht und neu geladen.`)) return;
+    if (!confirm(t("confirmRefresh", { label: s.label }))) return;
     startRefreshTimer();
     chrome.runtime.sendMessage({ type: "REFRESH_SOURCE", source: s }, () => {
       stopRefreshTimer();
@@ -186,16 +190,16 @@ let _refreshElapsed = 0;
 
 function startRefreshTimer() {
   _refreshElapsed = 0;
-  setStatus("Lädt… (0s)");
+  setStatus(t("refreshingTimer", { s: 0 }));
   _refreshTimer = setInterval(() => {
     _refreshElapsed++;
-    setStatus(`Lädt… (${_refreshElapsed}s)`);
+    setStatus(t("refreshingTimer", { s: _refreshElapsed }));
   }, 1000);
 }
 
 function stopRefreshTimer() {
   if (_refreshTimer) { clearInterval(_refreshTimer); _refreshTimer = null; }
-  setStatus("Fertig ✓");
+  setStatus(t("refreshDone"));
 }
 
 // --- Eigene Quelle hinzufügen ---
@@ -219,7 +223,7 @@ document.getElementById("add-confirm-btn").addEventListener("click", async () =>
   const { sources } = await chrome.storage.sync.get("sources");
   const existing = sources ?? [];
   if (existing.some((s) => s.url === url)) {
-    setStatus("Bereits vorhanden");
+    setStatus(t("alreadyExists"));
     return;
   }
 
@@ -234,7 +238,7 @@ document.getElementById("add-confirm-btn").addEventListener("click", async () =>
   document.getElementById("add-form").style.display = "none";
   document.getElementById("add-btn").style.display = "";
   renderSources(updated);
-  setStatus("Quelle hinzugefügt ✓");
+  setStatus(t("sourceAdded"));
 });
 
 // --- Gesperrte Kategorien ---
@@ -243,7 +247,7 @@ document.getElementById("save-blocked-btn").addEventListener("click", async () =
   const raw = document.getElementById("blocked-keywords").value;
   const keywords = raw.split(/[\n,]+/).map((s) => s.trim().toLowerCase()).filter(Boolean);
   await chrome.storage.sync.set({ blockedKeywords: keywords });
-  setStatus("Gespeichert ✓");
+  setStatus(t("saved"));
 });
 
 // --- Aktualisierungsintervall ---
@@ -251,7 +255,7 @@ document.getElementById("save-blocked-btn").addEventListener("click", async () =
 document.getElementById("save-interval-btn").addEventListener("click", async () => {
   const hours = parseInt(document.getElementById("interval-hours").value) || 24;
   await chrome.storage.sync.set({ refreshIntervalHours: hours });
-  setStatus("Gespeichert ✓");
+  setStatus(t("saved"));
 });
 
 // --- Alle Coupons löschen ---
@@ -262,7 +266,7 @@ document.getElementById("clear-btn").addEventListener("click", async () => {
   currentPage = 1;
   searchQuery = "";
   renderVoucherList();
-  setStatus("Gelöscht");
+  setStatus(t("cleared"));
 });
 
 // --- Suche ---
@@ -284,7 +288,7 @@ async function renderVoucherList() {
   if (!vouchers || vouchers.length === 0) {
     meta.textContent = "";
     searchInput.style.display = "none";
-    container.innerHTML = '<p class="no-vouchers">Noch keine Coupons gespeichert. Aktiviere eine Quelle und warte auf die nächste Aktualisierung, oder besuche die Quell-Seite.</p>';
+    container.innerHTML = `<p class="no-vouchers">${t("noVouchers")}</p>`;
     document.getElementById("pagination").innerHTML = "";
     voucherData = [];
     return;
@@ -299,8 +303,9 @@ async function renderVoucherList() {
   });
 
   const ts = vouchers.reduce((max, v) => Math.max(max, v.extractedAt ?? 0), 0);
-  meta.textContent = `${voucherData.length} Anbieter` +
-    (ts ? ` · Zuletzt aktualisiert ${new Date(ts).toLocaleString()}` : "");
+  const n = voucherData.length;
+  meta.textContent = `${n} ${t("colProvider").toLowerCase()}${n !== 1 ? "s" : ""}` +
+    (ts ? ` · ${t("lastSynced").toLowerCase()} ${new Date(ts).toLocaleString()}` : "");
 
   searchInput.style.display = "block";
   searchQuery = "";
@@ -327,7 +332,7 @@ function renderPage() {
   const table = document.createElement("table");
   table.className = "voucher-table";
   table.innerHTML = `<thead><tr>
-    <th>Anbieter</th><th>Domain</th><th>Code</th><th>Quelle</th>
+    <th>${t("colProvider")}</th><th>${t("colDomain")}</th><th>${t("colCode")}</th><th>${t("colSource")}</th>
   </tr></thead>`;
 
   const tbody = document.createElement("tbody");
@@ -367,11 +372,11 @@ function renderPage() {
     if (firstCode) {
       tdCode.className = "code-cell";
       tdCode.textContent = firstCode;
-      tdCode.title = "Klicken zum Kopieren";
+      tdCode.title = t("clickToCopy");
       tdCode.addEventListener("click", () => {
         navigator.clipboard.writeText(firstCode).then(() => {
           const orig = tdCode.textContent;
-          tdCode.textContent = "✓ Kopiert";
+          tdCode.textContent = t("copied");
           setTimeout(() => (tdCode.textContent = orig), 2000);
         });
       });
@@ -409,17 +414,17 @@ function renderPagination(total, totalPages) {
 
   const prev = document.createElement("button");
   prev.className = "btn-secondary";
-  prev.textContent = "← Zurück";
+  prev.textContent = t("btnPrev");
   prev.disabled = currentPage === 1;
   prev.addEventListener("click", () => { currentPage--; renderPage(); });
 
   const info = document.createElement("span");
   info.className = "page-info";
-  info.textContent = `Seite ${currentPage} von ${totalPages} (${total})`;
+  info.textContent = `${t("btnPrev").replace("← ", "")} ${currentPage} / ${totalPages} (${total})`;
 
   const next = document.createElement("button");
   next.className = "btn-secondary";
-  next.textContent = "Weiter →";
+  next.textContent = t("btnNext");
   next.disabled = currentPage === totalPages;
   next.addEventListener("click", () => { currentPage++; renderPage(); });
 
@@ -437,8 +442,8 @@ function showTooltip(e, v) {
     if (d.conditions) html += `<div class="tip-cond">${escHtml(d.conditions)}</div>`;
     return html + `</div>`;
   });
-  if (!parts.length) parts.push(`<div class="tip-text" style="color:#475569">Keine Details</div>`);
-  if (v.extractedAt) parts.push(`<div class="tip-footer">Gescannt ${new Date(v.extractedAt).toLocaleString()}</div>`);
+  if (!parts.length) parts.push(`<div class="tip-text" style="color:#475569">${t("noDetails")}</div>`);
+  if (v.extractedAt) parts.push(`<div class="tip-footer">${t("scanned")} ${new Date(v.extractedAt).toLocaleString()}</div>`);
   tooltip.innerHTML = parts.join("");
   tooltip.classList.add("visible");
   moveTooltip(e);
@@ -462,7 +467,7 @@ function hideTooltip() { tooltip.classList.remove("visible"); }
 function setStatus(msg) {
   const el = document.getElementById("status");
   el.textContent = msg;
-  if (!msg.startsWith("Lädt")) setTimeout(() => (el.textContent = ""), 3000);
+  if (!msg.includes("…")) setTimeout(() => (el.textContent = ""), 3000);
 }
 
 function escHtml(str) {

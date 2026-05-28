@@ -165,62 +165,61 @@
   </style>
 </head>
 <body>
-  <h1>CouponAlert Einstellungen</h1>
+  <h1 data-i18n="optionsTitle">CouponAlert Settings</h1>
 
   <section>
-    <h2>Quellen</h2>
+    <h2 data-i18n="sourcesSection">Sources</h2>
     <div id="source-list" class="source-list"></div>
 
     <div id="add-form" class="add-form" style="display:none">
       <div class="add-form-grid">
         <div>
-          <label>URL</label>
-          <input type="url" id="add-url" placeholder="https://example.com/vouchers">
+          <label data-i18n="labelUrl">URL</label>
+          <input type="url" id="add-url" data-i18n-placeholder="placeholderUrl">
         </div>
         <div>
-          <label>Bezeichnung</label>
-          <input type="text" id="add-label" placeholder="Mein Portal">
+          <label data-i18n="labelName">Name</label>
+          <input type="text" id="add-label" data-i18n-placeholder="placeholderName">
         </div>
       </div>
       <div class="btn-row">
-        <button id="add-confirm-btn">Hinzufügen</button>
-        <button class="btn-secondary" id="add-cancel-btn">Abbrechen</button>
+        <button id="add-confirm-btn" data-i18n="btnAdd">Add</button>
+        <button class="btn-secondary" id="add-cancel-btn" data-i18n="btnCancel">Cancel</button>
       </div>
     </div>
 
     <div class="btn-row">
-      <button class="btn-secondary" id="add-btn">+ Eigene Quelle hinzufügen</button>
-      <button class="btn-danger" id="clear-btn">Alle Coupons löschen</button>
+      <button class="btn-secondary" id="add-btn" data-i18n="btnAddSource">+ Add Custom Source</button>
+      <button class="btn-danger" id="clear-btn" data-i18n="btnClearVouchers">Clear All Vouchers</button>
       <span id="status"></span>
     </div>
   </section>
 
   <section>
-    <h2>Gesperrte Kategorien</h2>
-    <label>Anbieter mit diesen Stichwörtern überspringen (eines pro Zeile, Groß-/Kleinschreibung egal)</label>
+    <h2 data-i18n="blockedSection">Blocked Categories</h2>
+    <label data-i18n="labelBlockedHint">Skip providers matching these keywords (one per line, case-insensitive)</label>
     <textarea id="blocked-keywords" placeholder="auto&#10;kfz&#10;leasing"></textarea>
-    <p class="hint">Anbieter, deren Name eines dieser Wörter enthält, werden beim Scrapen übersprungen.</p>
-    <button id="save-blocked-btn">Speichern</button>
+    <p class="hint" data-i18n="hintBlocked">Providers whose name contains any of these words will be skipped during scraping.</p>
+    <button id="save-blocked-btn" data-i18n="btnSave">Save</button>
   </section>
 
   <section>
-    <h2>Automatische Aktualisierung</h2>
+    <h2 data-i18n="intervalSection">Auto-Refresh</h2>
     <div class="interval-row">
-      <label>Alle</label>
+      <label data-i18n="intervalBefore">Refresh every</label>
       <input type="number" id="interval-hours" min="1" max="168" value="24">
-      <label>Stunden aktualisieren</label>
-      <button id="save-interval-btn">Speichern</button>
+      <label data-i18n="intervalAfter">hours</label>
+      <button id="save-interval-btn" data-i18n="btnSave">Save</button>
     </div>
-    <p class="hint" style="margin-top:10px">
-      Die Extension aktualisiert alle aktivierten Quellen im Hintergrund. Bei Quellen, die einen Login erfordern,
-      muss der Browser aktive Session-Cookies haben.
+    <p class="hint" style="margin-top:10px" data-i18n="hintInterval">
+      The extension refreshes all enabled sources in the background. Sources requiring login need valid session cookies.
     </p>
   </section>
 
   <section>
-    <h2>Gespeicherte Coupons</h2>
+    <h2 data-i18n="vouchersSection">Stored Vouchers</h2>
     <p id="voucher-meta"></p>
-    <input type="search" id="search" placeholder="Anbieter suchen…" style="display:none">
+    <input type="search" id="search" data-i18n-placeholder="placeholderSearch" style="display:none">
     <div id="pagination"></div>
     <div id="voucher-list"></div>
   </section>
