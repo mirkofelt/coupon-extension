@@ -1,58 +1,81 @@
-const puppeteer = require("puppeteer");
-const path = require("path");
-const fs = require("fs");
+import puppeteer from "puppeteer";
+import path from "path";
+import fs from "fs";
+import { fileURLToPath } from "url";
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const EXTENSION_DIR = path.resolve(__dirname, "../extension");
 const OUT_DIR = path.resolve(__dirname, "../docs/screenshots");
+
+const MOCK_SOURCES = [
+  {
+    id: "adac_vorteilswelt",
+    url: "https://www.adac.de/mitgliedschaft/vorteilswelt/vorteilssuche/",
+    label: "ADAC Vorteilswelt",
+    type: "adac",
+    predefined: true,
+    enabled: true,
+    lastRefreshed: Date.now() - 1000 * 60 * 5,
+  },
+  {
+    id: "corporate_benefits",
+    url: "https://example.mitarbeiterangebote.de",
+    label: "Corporate Benefits",
+    type: "mao",
+    predefined: true,
+    requiresUrl: true,
+    enabled: false,
+  },
+];
 
 const MOCK_VOUCHERS = [
   {
     provider: "adidas",
-    providerUrl: "https://www.adidas.de",
     providerDomain: "adidas.de",
     offerUrl: "https://example.com/offer/1001",
+    sourceUrl: MOCK_SOURCES[0].url,
     discounts: [{ text: "15% Rabatt auf alles", code: "ADIDAS15", conditions: "ab 50 € MBW" }],
-    extractedAt: Date.now(),
+    extractedAt: Date.now() - 1000 * 60 * 5,
   },
   {
     provider: "IKEA",
-    providerUrl: "https://www.ikea.com/de",
     providerDomain: "ikea.com",
     offerUrl: "https://example.com/offer/1002",
+    sourceUrl: MOCK_SOURCES[0].url,
     discounts: [{ text: "10% auf Möbel & Wohnaccessoires", code: null, conditions: null }],
-    extractedAt: Date.now(),
+    extractedAt: Date.now() - 1000 * 60 * 5,
   },
   {
     provider: "Zalando",
-    providerUrl: "https://www.zalando.de",
     providerDomain: "zalando.de",
     offerUrl: "https://example.com/offer/1003",
+    sourceUrl: MOCK_SOURCES[0].url,
     discounts: [{ text: "20% Rabatt", code: "ZAL20CORP", conditions: "MBW 80 €" }],
-    extractedAt: Date.now(),
+    extractedAt: Date.now() - 1000 * 60 * 5,
   },
   {
     provider: "MediaMarkt",
-    providerUrl: "https://www.mediamarkt.de",
     providerDomain: "mediamarkt.de",
     offerUrl: "https://example.com/offer/1004",
+    sourceUrl: MOCK_SOURCES[0].url,
     discounts: [{ text: "5% auf Elektronik", code: "MM5CORP", conditions: null }],
-    extractedAt: Date.now(),
+    extractedAt: Date.now() - 1000 * 60 * 5,
   },
   {
     provider: "Nike",
-    providerUrl: "https://www.nike.com/de",
     providerDomain: "nike.com",
     offerUrl: "https://example.com/offer/1005",
+    sourceUrl: MOCK_SOURCES[0].url,
     discounts: [{ text: "20% auf reguläre Artikel", code: "NIKE20MA", conditions: null }],
-    extractedAt: Date.now(),
+    extractedAt: Date.now() - 1000 * 60 * 5,
   },
   {
     provider: "Apple",
-    providerUrl: "https://www.apple.com/de",
     providerDomain: "apple.com",
     offerUrl: "https://example.com/offer/1006",
+    sourceUrl: MOCK_SOURCES[0].url,
     discounts: [{ text: "Bildungsrabatt für Mitarbeiter", code: null, conditions: null }],
-    extractedAt: Date.now(),
+    extractedAt: Date.now() - 1000 * 60 * 5,
   },
 ];
 
@@ -61,15 +84,16 @@ function buildChromeMock(matchDomain) {
     window.chrome = {
       storage: {
         local: {
-          get: () => Promise.resolve({
-            vouchers: ${JSON.stringify(MOCK_VOUCHERS)},
-            lastMaoScrape: ${Date.now() - 1000 * 60 * 5}
-          }),
+          get: () => Promise.resolve({ vouchers: ${JSON.stringify(MOCK_VOUCHERS)} }),
           set: () => Promise.resolve(),
           remove: () => Promise.resolve(),
         },
         sync: {
-          get: () => Promise.resolve({ sourceUrl: "https://example.com/vouchers" }),
+          get: () => Promise.resolve({
+            sources: ${JSON.stringify(MOCK_SOURCES)},
+            refreshIntervalHours: 24,
+            blockedKeywords: [],
+          }),
           set: () => Promise.resolve(),
         },
       },
@@ -83,6 +107,8 @@ function buildChromeMock(matchDomain) {
         create: () => {},
       },
       alarms: { create: () => {}, onAlarm: { addListener: () => {} } },
+      action: { setBadgeText: () => {}, setBadgeBackgroundColor: () => {} },
+      notifications: { create: () => {} },
     };
   `;
 }
@@ -113,7 +139,6 @@ async function screenshotToolbar(browser, outFile) {
     display: flex; align-items: center; gap: 6px;
     min-width: 160px; max-width: 220px;
     box-shadow: 0 -1px 3px rgba(0,0,0,.08);
-    position: relative; top: 0;
   }
   .tab-favicon { width: 14px; height: 14px; border-radius: 2px; background: #10b981; }
   .tab-title { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -135,7 +160,6 @@ async function screenshotToolbar(browser, outFile) {
     display: flex; align-items: center; gap: 6px;
   }
   .lock { color: #555; font-size: 12px; }
-  .url { color: #333; }
   .extensions-area {
     display: flex; align-items: center; gap: 4px; padding-left: 4px;
   }
@@ -209,21 +233,19 @@ async function screenshot(browser, htmlFile, outFile, mockDomain, viewport) {
   console.log(`  ✓ ${outFile}`);
 }
 
-(async () => {
-  fs.mkdirSync(OUT_DIR, { recursive: true });
+fs.mkdirSync(OUT_DIR, { recursive: true });
 
-  const browser = await puppeteer.launch({
-    headless: true,
-    args: ["--no-sandbox", "--disable-setuid-sandbox"],
-  });
+const browser = await puppeteer.launch({
+  headless: true,
+  args: ["--no-sandbox", "--disable-setuid-sandbox"],
+});
 
-  console.log("Taking screenshots…");
+console.log("Taking screenshots…");
 
-  await screenshotToolbar(browser, "browser-toolbar.png");
-  await screenshot(browser, "popup.html", "popup-match.png", "adidas.de", { width: 340, height: 260 });
-  await screenshot(browser, "popup.html", "popup-count.png", "other-site.de", { width: 340, height: 140 });
-  await screenshot(browser, "options.html", "settings.png", "other-site.de", { width: 720, height: 560 });
+await screenshotToolbar(browser, "browser-toolbar.png");
+await screenshot(browser, "popup.html", "popup-match.png", "adidas.de", { width: 340, height: 260 });
+await screenshot(browser, "popup.html", "popup-count.png", "other-site.de", { width: 340, height: 140 });
+await screenshot(browser, "options.html", "settings.png", "other-site.de", { width: 720, height: 560 });
 
-  await browser.close();
-  console.log("Done.");
-})();
+await browser.close();
+console.log("Done.");
