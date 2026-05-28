@@ -143,8 +143,15 @@ function buildPredefinedItem(source) {
     if (!s || (s.requiresUrl && !s.url)) return;
     if (!confirm(t("confirmRefresh", { label: s.label }))) return;
     startRefreshTimer();
-    chrome.runtime.sendMessage({ type: "REFRESH_SOURCE", source: s }, () => {
-      stopRefreshTimer();
+    chrome.runtime.sendMessage({ type: "REFRESH_SOURCE", source: s }, (res) => {
+      if (res?.openedTab) {
+        clearInterval(_refreshTimer);
+        _refreshTimer = null;
+        setStatus(t("openedTab"));
+        setTimeout(() => setStatus(""), 5000);
+      } else {
+        stopRefreshTimer();
+      }
       load();
     });
   });

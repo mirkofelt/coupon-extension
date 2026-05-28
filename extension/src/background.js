@@ -83,7 +83,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     return true;
   }
   if (msg.type === "REFRESH_SOURCE") {
-    refreshSource(msg.source, { manual: true }).then(() => sendResponse({ ok: true }));
+    refreshSource(msg.source, { manual: true }).then((result) => sendResponse({ ok: true, ...result }));
     return true;
   }
   if (msg.type === "SOURCE_ERROR") {
@@ -115,6 +115,7 @@ async function refreshSource(source, { manual = false } = {}) {
   if (source.url.includes(MAO_HOSTNAME)) {
     if (manual) {
       chrome.tabs.create({ url: source.url });
+      return { openedTab: true };
     } else {
       const label = source.label ?? new URL(source.url).hostname;
       const notifId = "visit_" + btoa(source.url);
@@ -124,8 +125,8 @@ async function refreshSource(source, { manual = false } = {}) {
         title: "CouponAlert – Vouchers aktualisieren",
         message: `Besuche "${label}" um deine Vouchers zu aktualisieren. Klicken zum Öffnen.`,
       });
+      return;
     }
-    return;
   }
 
   chrome.action.setBadgeText({ text: "↻" });

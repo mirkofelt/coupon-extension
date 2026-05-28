@@ -38,6 +38,7 @@ const MESSAGES = {
     confirmRefresh: "Refresh \"{label}\" now?\nThis will delete and reload all stored coupons for this source.",
     refreshingTimer: "Loading… ({s}s)",
     refreshDone: "Done ✓",
+    openedTab: "Tab opened — scraping starts when you're logged in ↗",
     // Status
     alreadyExists: "Already exists",
     sourceAdded: "Source added ✓",
@@ -111,6 +112,7 @@ const MESSAGES = {
     confirmRefresh: "„{label}“ jetzt aktualisieren?\nDabei werden die gespeicherten Coupons dieser Quelle gelöscht und neu geladen.",
     refreshingTimer: "Lädt… ({s}s)",
     refreshDone: "Fertig ✓",
+    openedTab: "Tab geöffnet — Scraping startet wenn du eingeloggt bist ↗",
     // Status
     alreadyExists: "Bereits vorhanden",
     sourceAdded: "Quelle hinzugefügt ✓",
