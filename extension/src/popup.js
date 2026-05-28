@@ -1,13 +1,14 @@
 import { t, translatePage } from "./i18n.js";
 
 function openSettings() {
-  // openOptionsPage() is more reliable across browsers (Chrome MV3 + Safari).
-  // chrome.tabs.create() in a Safari popup context can fail silently.
-  if (chrome.runtime.openOptionsPage) {
-    chrome.runtime.openOptionsPage();
-  } else {
-    chrome.tabs.create({ url: chrome.runtime.getURL("options.html") });
-  }
+  const optionsUrl = chrome.runtime.getURL("options.html");
+  // openOptionsPage() exists in Safari but doesn't reliably open a tab from popup context.
+  // Directly navigate the popup window itself as the most cross-browser safe fallback.
+  chrome.tabs.create({ url: optionsUrl }, () => {
+    if (chrome.runtime.lastError) {
+      window.location.href = optionsUrl;
+    }
+  });
 }
 
 async function init() {
