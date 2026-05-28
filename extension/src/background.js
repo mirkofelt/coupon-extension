@@ -69,7 +69,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     return true;
   }
   if (msg.type === "REFRESH_SOURCE") {
-    refreshSource(msg.source).then(() => sendResponse({ ok: true }));
+    refreshSource(msg.source, { manual: true }).then(() => sendResponse({ ok: true }));
     return true;
   }
   if (msg.type === "SOURCE_ERROR") {
@@ -94,18 +94,23 @@ async function backgroundRefreshAll() {
   await Promise.all(stale.map((source) => refreshSource(source)));
 }
 
-async function refreshSource(source) {
+async function refreshSource(source, { manual = false } = {}) {
   // MAO sources require an active browser session — can't scrape from background.
-  // Instead, notify the user to visit the page so the content script can scrape.
+  // Manual refresh: open the tab directly so the content script can scrape.
+  // Automatic alarm: show a notification the user can click.
   if (source.url.includes(MAO_HOSTNAME)) {
-    const label = source.label ?? new URL(source.url).hostname;
-    const notifId = "visit_" + btoa(source.url);
-    chrome.notifications.create(notifId, {
-      type: "basic",
-      iconUrl: "icons/icon-48.png",
-      title: "CouponAlert – Vouchers aktualisieren",
-      message: `Besuche "${label}" um deine Vouchers zu aktualisieren. Klicken zum Öffnen.`,
-    });
+    if (manual) {
+      chrome.tabs.create({ url: source.url });
+    } else {
+      const label = source.label ?? new URL(source.url).hostname;
+      const notifId = "visit_" + btoa(source.url);
+      chrome.notifications.create(notifId, {
+        type: "basic",
+        iconUrl: "icons/icon-48.png",
+        title: "CouponAlert – Vouchers aktualisieren",
+        message: `Besuche "${label}" um deine Vouchers zu aktualisieren. Klicken zum Öffnen.`,
+      });
+    }
     return;
   }
 
