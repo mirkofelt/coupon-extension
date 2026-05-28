@@ -27,7 +27,7 @@ async function init() {
     return;
   }
 
-  // Deduplicate by domain
+  // Deduplicate by domain for the count row only
   const seen = new Set();
   const deduped = vouchers.filter((v) => {
     const key = v.providerDomain ?? v.provider;
@@ -39,32 +39,38 @@ async function init() {
   countRow.style.display = "block";
   countRow.innerHTML = `<strong>${deduped.length}</strong> voucher${deduped.length !== 1 ? "s" : ""} stored`;
 
-  // Check if current page matches a stored voucher
+  // Find ALL matches for current page from raw list (multiple sources may match)
   let currentDomain = null;
   try {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     if (tab?.url) currentDomain = new URL(tab.url).hostname.replace(/^www\./, "");
   } catch {}
 
-  const match = currentDomain ? deduped.find((v) => v.providerDomain === currentDomain) : null;
+  const matches = currentDomain
+    ? vouchers.filter((v) => v.providerDomain === currentDomain)
+    : [];
 
-  if (match) {
+  if (matches.length > 0) {
     matchSection.style.display = "block";
-    renderMatch(matchSection, match);
+    matches.forEach((m) => renderMatch(matchSection, m));
   } else {
     noMatch.style.display = "block";
   }
 }
 
 function renderMatch(container, voucher) {
-  const h2 = document.createElement("h2");
-  h2.textContent = "Voucher for this site";
-  container.appendChild(h2);
+  const card = document.createElement("div");
+  card.className = "voucher-card";
+
+  const titleEl = document.createElement("div");
+  titleEl.className = "voucher-card-title";
+  titleEl.textContent = voucher.providerDomain ?? voucher.provider;
+  card.appendChild(titleEl);
 
   const provEl = document.createElement("div");
   provEl.className = "match-provider";
   provEl.textContent = voucher.provider;
-  container.appendChild(provEl);
+  card.appendChild(provEl);
 
   for (const d of voucher.discounts) {
     const row = document.createElement("div");
@@ -97,7 +103,7 @@ function renderMatch(container, voucher) {
       row.appendChild(noCode);
     }
 
-    container.appendChild(row);
+    card.appendChild(row);
   }
 
   if (voucher.offerUrl) {
@@ -109,8 +115,10 @@ function renderMatch(container, voucher) {
       e.preventDefault();
       chrome.tabs.create({ url: voucher.offerUrl });
     });
-    container.appendChild(link);
+    card.appendChild(link);
   }
+
+  container.appendChild(card);
 }
 
 document.getElementById("settings-btn").addEventListener("click", () => {

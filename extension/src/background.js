@@ -101,10 +101,19 @@ async function refreshSource(source) {
   chrome.action.setBadgeBackgroundColor({ color: "#10b981" });
 
   if (scrapeError || newVouchers.length === 0) {
+    const reason = scrapeError ?? "no_results";
+    if (reason === "not_logged_in") {
+      chrome.notifications.create(`login_${source.id ?? source.url}`, {
+        type: "basic",
+        iconUrl: "icons/icon-48.png",
+        title: "CouponAlert",
+        message: `Bitte bei "${source.label ?? source.url}" einloggen, um Vouchers zu laden.`,
+      });
+    }
     chrome.runtime.sendMessage({
       type: "SOURCE_ERROR",
       sourceUrl: source.url,
-      reason: scrapeError ?? "no_results",
+      reason,
     }).catch(() => {});
     return;
   }
