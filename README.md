@@ -10,13 +10,31 @@ A browser extension that automatically extracts discount vouchers from a configu
 - **One-click copy**: Click the badge to copy the code to your clipboard
 - **Popup overview**: Lists all stored providers with their discounts and copy buttons
 
+## Build
+
+Requires Node.js. Install dependencies and build once before loading:
+
+```bash
+npm install
+npm run build
+```
+
+For active development with auto-rebuild on file changes:
+
+```bash
+npm run watch
+```
+
+The build output goes to `extension/dist/`. The `extension/` folder (including `dist/`) is what you load into the browser.
+
 ## Installation
 
 ### Chrome / Edge / Brave
 
-1. Open `chrome://extensions`
-2. Enable **Developer mode** (top right)
-3. Click **Load unpacked** → select the `extension/` folder
+1. Run `npm install && npm run build` (see above)
+2. Open `chrome://extensions`
+3. Enable **Developer mode** (top right)
+4. Click **Load unpacked** → select the `extension/` folder
 4. Open the extension options and configure the source URL and CSS selectors
 
 ### Safari (macOS)
@@ -33,9 +51,10 @@ If the converter crashes with a plug-in or CoreSimulator error, complete the Xco
 sudo xcodebuild -runFirstLaunch
 ```
 
-Then convert and build once:
+Then build the extension and convert once:
 
 ```bash
+npm install && npm run build
 xcrun safari-web-extension-converter extension/ --project-location ~/Desktop
 ```
 
