@@ -12,6 +12,16 @@ const DEFAULT_SOURCES = [
     url: "https://www.adac.de/mitgliedschaft/vorteilswelt/vorteilssuche/",
     label: "ADAC Vorteilswelt",
     type: "adac",
+    predefined: true,
+    enabled: false,
+  },
+  {
+    id: "corporate_benefits",
+    url: "",
+    label: "Corporate Benefits",
+    type: "mao",
+    predefined: true,
+    requiresUrl: true,
     enabled: false,
   },
 ];

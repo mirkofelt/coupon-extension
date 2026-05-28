@@ -53,6 +53,18 @@
     /* Sources list */
     .source-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
 
+    .source-group-label {
+      font-size: 11px; text-transform: uppercase; letter-spacing: .08em;
+      color: #64748b; font-weight: 500; margin-bottom: 8px;
+    }
+
+    .source-url-inline {
+      width: 100%; background: #0f172a; border: 1px solid #334155;
+      border-radius: 4px; color: #94a3b8; padding: 5px 8px;
+      font-size: 11px; font-family: monospace; margin-top: 4px; margin-bottom: 2px;
+    }
+    .source-url-inline:focus { outline: none; border-color: #10b981; }
+
     .source-item {
       display: flex; align-items: center; gap: 10px;
       background: #1e293b; border: 1px solid #334155; border-radius: 8px;
@@ -153,10 +165,10 @@
   </style>
 </head>
 <body>
-  <h1>CouponAlert Settings</h1>
+  <h1>CouponAlert Einstellungen</h1>
 
   <section>
-    <h2>Voucher Sources</h2>
+    <h2>Quellen</h2>
     <div id="source-list" class="source-list"></div>
 
     <div id="add-form" class="add-form" style="display:none">
@@ -166,49 +178,49 @@
           <input type="url" id="add-url" placeholder="https://example.com/vouchers">
         </div>
         <div>
-          <label>Label</label>
-          <input type="text" id="add-label" placeholder="My Portal">
+          <label>Bezeichnung</label>
+          <input type="text" id="add-label" placeholder="Mein Portal">
         </div>
       </div>
       <div class="btn-row">
-        <button id="add-confirm-btn">Add Source</button>
-        <button class="btn-secondary" id="add-cancel-btn">Cancel</button>
+        <button id="add-confirm-btn">Hinzufügen</button>
+        <button class="btn-secondary" id="add-cancel-btn">Abbrechen</button>
       </div>
     </div>
 
     <div class="btn-row">
-      <button class="btn-secondary" id="add-btn">+ Add Source</button>
-      <button class="btn-danger" id="clear-btn">Clear All Vouchers</button>
+      <button class="btn-secondary" id="add-btn">+ Eigene Quelle hinzufügen</button>
+      <button class="btn-danger" id="clear-btn">Alle Coupons löschen</button>
       <span id="status"></span>
     </div>
   </section>
 
   <section>
-    <h2>Blocked Categories</h2>
-    <label>Skip providers matching these keywords (one per line, case-insensitive)</label>
+    <h2>Gesperrte Kategorien</h2>
+    <label>Anbieter mit diesen Stichwörtern überspringen (eines pro Zeile, Groß-/Kleinschreibung egal)</label>
     <textarea id="blocked-keywords" placeholder="auto&#10;kfz&#10;leasing"></textarea>
-    <p class="hint">Providers whose name contains any of these words will be skipped during scraping.</p>
-    <button id="save-blocked-btn">Save</button>
+    <p class="hint">Anbieter, deren Name eines dieser Wörter enthält, werden beim Scrapen übersprungen.</p>
+    <button id="save-blocked-btn">Speichern</button>
   </section>
 
   <section>
-    <h2>Auto-Refresh</h2>
+    <h2>Automatische Aktualisierung</h2>
     <div class="interval-row">
-      <label>Refresh every</label>
+      <label>Alle</label>
       <input type="number" id="interval-hours" min="1" max="168" value="24">
-      <label>hours</label>
-      <button id="save-interval-btn">Save</button>
+      <label>Stunden aktualisieren</label>
+      <button id="save-interval-btn">Speichern</button>
     </div>
     <p class="hint" style="margin-top:10px">
-      The extension refreshes all enabled sources in the background. If a source requires login,
-      make sure you're logged in at least once so the browser has valid session cookies.
+      Die Extension aktualisiert alle aktivierten Quellen im Hintergrund. Bei Quellen, die einen Login erfordern,
+      muss der Browser aktive Session-Cookies haben.
     </p>
   </section>
 
   <section>
-    <h2>Stored Vouchers</h2>
+    <h2>Gespeicherte Coupons</h2>
     <p id="voucher-meta"></p>
-    <input type="search" id="search" placeholder="Search providers…" style="display:none">
+    <input type="search" id="search" placeholder="Anbieter suchen…" style="display:none">
     <div id="pagination"></div>
     <div id="voucher-list"></div>
   </section>

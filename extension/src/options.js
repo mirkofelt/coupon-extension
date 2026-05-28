@@ -17,71 +17,143 @@ function renderSources(sources) {
   const container = document.getElementById("source-list");
   container.innerHTML = "";
 
-  if (sources.length === 0) {
-    container.innerHTML = '<p class="no-vouchers">No sources configured. Add one below.</p>';
-    return;
+  const predefined = sources.filter((s) => s.predefined);
+  const custom = sources.filter((s) => !s.predefined);
+
+  const predHeader = document.createElement("div");
+  predHeader.className = "source-group-label";
+  predHeader.textContent = "Vordefinierte Quellen";
+  container.appendChild(predHeader);
+
+  if (predefined.length === 0) {
+    container.insertAdjacentHTML("beforeend", '<p class="no-vouchers" style="margin-bottom:12px">Keine vordefinierten Quellen.</p>');
+  } else {
+    for (const source of predefined) container.appendChild(buildPredefinedItem(source));
   }
 
-  for (const source of sources) {
-    const item = document.createElement("div");
-    item.className = "source-item" + (source.enabled ? "" : " disabled");
+  const custHeader = document.createElement("div");
+  custHeader.className = "source-group-label";
+  custHeader.style.marginTop = "20px";
+  custHeader.textContent = "Eigene Quellen";
+  container.appendChild(custHeader);
 
-    function errorLabel(code) {
-      if (!code) return "";
-      if (code === "not_logged_in") return "⚠ Not logged in";
-      if (code === "no_items") return "⚠ No items (site structure changed?)";
-      if (code === "network") return "⚠ Network error";
-      if (code === "no_results") return "⚠ No results";
-      if (code.startsWith("rate_limited_")) return `⚠ Rate limited (429 ×${code.split("_")[2]})`;
-      if (code.startsWith("http_")) { const p = code.split("_"); return `⚠ HTTP ${p[1]} ×${p[2]}`; }
-      return "⚠ Error";
-    }
-    let lastStr;
-    if (source.lastError && source.lastErrorAt) {
-      lastStr = `${errorLabel(source.lastError)} · ${new Date(source.lastErrorAt).toLocaleString()}`;
-    } else if (source.lastRefreshed) {
-      lastStr = `Last synced ${new Date(source.lastRefreshed).toLocaleString()}`;
-    } else {
-      lastStr = "Never synced";
-    }
-
-    item.innerHTML = `
-      <label class="source-toggle">
-        <input type="checkbox" ${source.enabled ? "checked" : ""} data-id="${source.id}">
-        <span class="source-toggle-slider"></span>
-      </label>
-      <div class="source-info">
-        <div class="source-label">${escHtml(source.label)}</div>
-        <div class="source-url">${escHtml(source.url)}</div>
-        <div class="source-last${source.lastError ? " source-error" : ""}">${lastStr}</div>
-      </div>
-      <div class="source-actions">
-        <button class="btn-icon btn-refresh" title="Refresh now" data-refresh="${source.id}">↻</button>
-        <button class="btn-icon" title="Remove" data-remove="${source.id}">✕</button>
-      </div>
-    `;
-
-    item.querySelector("input[type='checkbox']").addEventListener("change", async (e) => {
-      await updateSource(source.id, { enabled: e.target.checked });
-    });
-
-    item.querySelector("[data-refresh]").addEventListener("click", async () => {
-      const { sources } = await chrome.storage.sync.get("sources");
-      const s = sources?.find((x) => x.id === source.id);
-      if (!s) return;
-      setStatus("Refreshing…");
-      chrome.runtime.sendMessage({ type: "REFRESH_SOURCE", source: s }, () => {
-        setStatus("Done ✓");
-        load();
-      });
-    });
-
-    item.querySelector("[data-remove]").addEventListener("click", async () => {
-      await removeSource(source.id);
-    });
-
-    container.appendChild(item);
+  if (custom.length === 0) {
+    container.insertAdjacentHTML("beforeend", '<p class="no-vouchers" style="margin-bottom:12px">Noch keine eigenen Quellen hinzugefügt.</p>');
+  } else {
+    for (const source of custom) container.appendChild(buildCustomItem(source));
   }
+}
+
+function buildLastStr(source) {
+  if (source.lastError && source.lastErrorAt) {
+    return `${errorLabel(source.lastError)} · ${new Date(source.lastErrorAt).toLocaleString()}`;
+  } else if (source.lastRefreshed) {
+    return `Zuletzt synchronisiert ${new Date(source.lastRefreshed).toLocaleString()}`;
+  }
+  return "Noch nicht synchronisiert";
+}
+
+function errorLabel(code) {
+  if (!code) return "";
+  if (code === "not_logged_in") return "⚠ Nicht eingeloggt";
+  if (code === "no_items") return "⚠ Keine Einträge (Seitenstruktur geändert?)";
+  if (code === "network") return "⚠ Netzwerkfehler";
+  if (code === "no_results") return "⚠ Keine Ergebnisse";
+  if (code.startsWith("rate_limited_")) return `⚠ Zu viele Anfragen (429 ×${code.split("_")[2]})`;
+  if (code.startsWith("http_")) { const p = code.split("_"); return `⚠ HTTP ${p[1]} ×${p[2]}`; }
+  return "⚠ Fehler";
+}
+
+function buildPredefinedItem(source) {
+  const item = document.createElement("div");
+  const needsUrl = source.requiresUrl && !source.url;
+  item.className = "source-item" + (source.enabled ? "" : " disabled");
+
+  item.innerHTML = `
+    <label class="source-toggle">
+      <input type="checkbox" ${source.enabled ? "checked" : ""} ${needsUrl ? "disabled" : ""} data-id="${source.id}">
+      <span class="source-toggle-slider"></span>
+    </label>
+    <div class="source-info">
+      <div class="source-label">${escHtml(source.label)}</div>
+      ${source.requiresUrl
+        ? `<input type="url" class="source-url-inline" placeholder="https://firma.mitarbeiterangebote.de" value="${escHtml(source.url ?? "")}" data-id="${source.id}">`
+        : `<div class="source-url">${escHtml(source.url)}</div>`
+      }
+      <div class="source-last${source.lastError ? " source-error" : ""}">${buildLastStr(source)}</div>
+    </div>
+    <div class="source-actions">
+      <button class="btn-icon btn-refresh" title="Jetzt aktualisieren" data-refresh="${source.id}"${needsUrl ? " disabled" : ""}>↻</button>
+    </div>
+  `;
+
+  item.querySelector("input[type='checkbox']").addEventListener("change", async (e) => {
+    await updateSource(source.id, { enabled: e.target.checked });
+  });
+
+  if (source.requiresUrl) {
+    const urlInput = item.querySelector(".source-url-inline");
+    urlInput.addEventListener("change", async () => {
+      await updateSource(source.id, { url: urlInput.value.trim() });
+    });
+  }
+
+  item.querySelector("[data-refresh]").addEventListener("click", async () => {
+    const { sources } = await chrome.storage.sync.get("sources");
+    const s = sources?.find((x) => x.id === source.id);
+    if (!s || (s.requiresUrl && !s.url)) return;
+    if (!confirm(`„${s.label}" jetzt aktualisieren?\nDabei werden die gespeicherten Coupons dieser Quelle gelöscht und neu geladen.`)) return;
+    startRefreshTimer();
+    chrome.runtime.sendMessage({ type: "REFRESH_SOURCE", source: s }, () => {
+      stopRefreshTimer();
+      load();
+    });
+  });
+
+  return item;
+}
+
+function buildCustomItem(source) {
+  const item = document.createElement("div");
+  item.className = "source-item" + (source.enabled ? "" : " disabled");
+
+  item.innerHTML = `
+    <label class="source-toggle">
+      <input type="checkbox" ${source.enabled ? "checked" : ""} data-id="${source.id}">
+      <span class="source-toggle-slider"></span>
+    </label>
+    <div class="source-info">
+      <div class="source-label">${escHtml(source.label)}</div>
+      <div class="source-url">${escHtml(source.url)}</div>
+      <div class="source-last${source.lastError ? " source-error" : ""}">${buildLastStr(source)}</div>
+    </div>
+    <div class="source-actions">
+      <button class="btn-icon btn-refresh" title="Jetzt aktualisieren" data-refresh="${source.id}">↻</button>
+      <button class="btn-icon" title="Entfernen" data-remove="${source.id}">✕</button>
+    </div>
+  `;
+
+  item.querySelector("input[type='checkbox']").addEventListener("change", async (e) => {
+    await updateSource(source.id, { enabled: e.target.checked });
+  });
+
+  item.querySelector("[data-refresh]").addEventListener("click", async () => {
+    const { sources } = await chrome.storage.sync.get("sources");
+    const s = sources?.find((x) => x.id === source.id);
+    if (!s) return;
+    if (!confirm(`„${s.label}" jetzt aktualisieren?\nDabei werden die gespeicherten Coupons dieser Quelle gelöscht und neu geladen.`)) return;
+    startRefreshTimer();
+    chrome.runtime.sendMessage({ type: "REFRESH_SOURCE", source: s }, () => {
+      stopRefreshTimer();
+      load();
+    });
+  });
+
+  item.querySelector("[data-remove]").addEventListener("click", async () => {
+    await removeSource(source.id);
+  });
+
+  return item;
 }
 
 async function updateSource(id, patch) {
@@ -107,7 +179,26 @@ async function removeSource(id) {
   renderVoucherList();
 }
 
-// --- Add source form ---
+// --- Refresh timer ---
+
+let _refreshTimer = null;
+let _refreshElapsed = 0;
+
+function startRefreshTimer() {
+  _refreshElapsed = 0;
+  setStatus("Lädt… (0s)");
+  _refreshTimer = setInterval(() => {
+    _refreshElapsed++;
+    setStatus(`Lädt… (${_refreshElapsed}s)`);
+  }, 1000);
+}
+
+function stopRefreshTimer() {
+  if (_refreshTimer) { clearInterval(_refreshTimer); _refreshTimer = null; }
+  setStatus("Fertig ✓");
+}
+
+// --- Eigene Quelle hinzufügen ---
 
 document.getElementById("add-btn").addEventListener("click", () => {
   document.getElementById("add-form").style.display = "block";
@@ -128,7 +219,7 @@ document.getElementById("add-confirm-btn").addEventListener("click", async () =>
   const { sources } = await chrome.storage.sync.get("sources");
   const existing = sources ?? [];
   if (existing.some((s) => s.url === url)) {
-    setStatus("Already exists");
+    setStatus("Bereits vorhanden");
     return;
   }
 
@@ -143,27 +234,27 @@ document.getElementById("add-confirm-btn").addEventListener("click", async () =>
   document.getElementById("add-form").style.display = "none";
   document.getElementById("add-btn").style.display = "";
   renderSources(updated);
-  setStatus("Source added ✓");
+  setStatus("Quelle hinzugefügt ✓");
 });
 
-// --- Blocked keywords ---
+// --- Gesperrte Kategorien ---
 
 document.getElementById("save-blocked-btn").addEventListener("click", async () => {
   const raw = document.getElementById("blocked-keywords").value;
   const keywords = raw.split(/[\n,]+/).map((s) => s.trim().toLowerCase()).filter(Boolean);
   await chrome.storage.sync.set({ blockedKeywords: keywords });
-  setStatus("Saved ✓");
+  setStatus("Gespeichert ✓");
 });
 
-// --- Interval ---
+// --- Aktualisierungsintervall ---
 
 document.getElementById("save-interval-btn").addEventListener("click", async () => {
   const hours = parseInt(document.getElementById("interval-hours").value) || 24;
   await chrome.storage.sync.set({ refreshIntervalHours: hours });
-  setStatus("Saved ✓");
+  setStatus("Gespeichert ✓");
 });
 
-// --- Clear ---
+// --- Alle Coupons löschen ---
 
 document.getElementById("clear-btn").addEventListener("click", async () => {
   await chrome.storage.local.remove(["vouchers"]);
@@ -171,10 +262,10 @@ document.getElementById("clear-btn").addEventListener("click", async () => {
   currentPage = 1;
   searchQuery = "";
   renderVoucherList();
-  setStatus("Cleared");
+  setStatus("Gelöscht");
 });
 
-// --- Search ---
+// --- Suche ---
 
 document.getElementById("search").addEventListener("input", (e) => {
   searchQuery = e.target.value.toLowerCase();
@@ -182,7 +273,7 @@ document.getElementById("search").addEventListener("input", (e) => {
   renderPage();
 });
 
-// --- Voucher list ---
+// --- Coupon-Liste ---
 
 async function renderVoucherList() {
   const { vouchers } = await chrome.storage.local.get("vouchers");
@@ -193,7 +284,7 @@ async function renderVoucherList() {
   if (!vouchers || vouchers.length === 0) {
     meta.textContent = "";
     searchInput.style.display = "none";
-    container.innerHTML = '<p class="no-vouchers">No vouchers stored yet. Enable a source and wait for the next refresh, or visit the source page.</p>';
+    container.innerHTML = '<p class="no-vouchers">Noch keine Coupons gespeichert. Aktiviere eine Quelle und warte auf die nächste Aktualisierung, oder besuche die Quell-Seite.</p>';
     document.getElementById("pagination").innerHTML = "";
     voucherData = [];
     return;
@@ -208,8 +299,8 @@ async function renderVoucherList() {
   });
 
   const ts = vouchers.reduce((max, v) => Math.max(max, v.extractedAt ?? 0), 0);
-  meta.textContent = `${voucherData.length} provider${voucherData.length !== 1 ? "s" : ""}` +
-    (ts ? ` · last updated ${new Date(ts).toLocaleString()}` : "");
+  meta.textContent = `${voucherData.length} Anbieter` +
+    (ts ? ` · Zuletzt aktualisiert ${new Date(ts).toLocaleString()}` : "");
 
   searchInput.style.display = "block";
   searchQuery = "";
@@ -236,7 +327,7 @@ function renderPage() {
   const table = document.createElement("table");
   table.className = "voucher-table";
   table.innerHTML = `<thead><tr>
-    <th>Provider</th><th>Domain</th><th>Code</th><th>Source</th>
+    <th>Anbieter</th><th>Domain</th><th>Code</th><th>Quelle</th>
   </tr></thead>`;
 
   const tbody = document.createElement("tbody");
@@ -276,11 +367,11 @@ function renderPage() {
     if (firstCode) {
       tdCode.className = "code-cell";
       tdCode.textContent = firstCode;
-      tdCode.title = "Click to copy";
+      tdCode.title = "Klicken zum Kopieren";
       tdCode.addEventListener("click", () => {
         navigator.clipboard.writeText(firstCode).then(() => {
           const orig = tdCode.textContent;
-          tdCode.textContent = "✓ Copied";
+          tdCode.textContent = "✓ Kopiert";
           setTimeout(() => (tdCode.textContent = orig), 2000);
         });
       });
@@ -318,17 +409,17 @@ function renderPagination(total, totalPages) {
 
   const prev = document.createElement("button");
   prev.className = "btn-secondary";
-  prev.textContent = "← Prev";
+  prev.textContent = "← Zurück";
   prev.disabled = currentPage === 1;
   prev.addEventListener("click", () => { currentPage--; renderPage(); });
 
   const info = document.createElement("span");
   info.className = "page-info";
-  info.textContent = `Page ${currentPage} of ${totalPages} (${total})`;
+  info.textContent = `Seite ${currentPage} von ${totalPages} (${total})`;
 
   const next = document.createElement("button");
   next.className = "btn-secondary";
-  next.textContent = "Next →";
+  next.textContent = "Weiter →";
   next.disabled = currentPage === totalPages;
   next.addEventListener("click", () => { currentPage++; renderPage(); });
 
@@ -346,8 +437,8 @@ function showTooltip(e, v) {
     if (d.conditions) html += `<div class="tip-cond">${escHtml(d.conditions)}</div>`;
     return html + `</div>`;
   });
-  if (!parts.length) parts.push(`<div class="tip-text" style="color:#475569">No discount details</div>`);
-  if (v.extractedAt) parts.push(`<div class="tip-footer">Scraped ${new Date(v.extractedAt).toLocaleString()}</div>`);
+  if (!parts.length) parts.push(`<div class="tip-text" style="color:#475569">Keine Details</div>`);
+  if (v.extractedAt) parts.push(`<div class="tip-footer">Gescannt ${new Date(v.extractedAt).toLocaleString()}</div>`);
   tooltip.innerHTML = parts.join("");
   tooltip.classList.add("visible");
   moveTooltip(e);
@@ -366,15 +457,16 @@ function moveTooltip(e) {
 
 function hideTooltip() { tooltip.classList.remove("visible"); }
 
-// --- Helpers ---
+// --- Hilfsfunktionen ---
 
 function setStatus(msg) {
   const el = document.getElementById("status");
   el.textContent = msg;
-  setTimeout(() => (el.textContent = ""), 3000);
+  if (!msg.startsWith("Lädt")) setTimeout(() => (el.textContent = ""), 3000);
 }
 
 function escHtml(str) {
+  if (!str) return "";
   return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 
