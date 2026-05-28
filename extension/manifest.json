@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "CouponAlert",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Highlights providers on comparison sites when a voucher is available, and extracts vouchers from a configurable source page.",
   "homepage_url": "https://mirkofelt.github.io/coupon-extension/",
 
