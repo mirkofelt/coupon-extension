@@ -1,6 +1,7 @@
 .DS_Store
 *.local
 node_modules/
+package-lock.json
 extension/dist/
 dist/
 safari-xcode/
