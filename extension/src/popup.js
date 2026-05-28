@@ -46,25 +46,29 @@ async function init() {
     if (tab?.url) currentDomain = new URL(tab.url).hostname.replace(/^www\./, "");
   } catch {}
 
+  const sourceLabels = Object.fromEntries((sources ?? []).map((s) => [s.url, s.label ?? s.url]));
+
   const matches = currentDomain
     ? vouchers.filter((v) => v.providerDomain === currentDomain)
     : [];
 
   if (matches.length > 0) {
     matchSection.style.display = "block";
-    matches.forEach((m) => renderMatch(matchSection, m));
+    matches.forEach((m) => renderMatch(matchSection, m, sourceLabels));
   } else {
     noMatch.style.display = "block";
   }
 }
 
-function renderMatch(container, voucher) {
+function renderMatch(container, voucher, sourceLabels = {}) {
   const card = document.createElement("div");
   card.className = "voucher-card";
 
   const titleEl = document.createElement("div");
   titleEl.className = "voucher-card-title";
-  titleEl.textContent = voucher.providerDomain ?? voucher.provider;
+  titleEl.textContent = (voucher.sourceUrl && sourceLabels[voucher.sourceUrl])
+    ? sourceLabels[voucher.sourceUrl]
+    : (voucher.sourceUrl ? new URL(voucher.sourceUrl).hostname : "—");
   card.appendChild(titleEl);
 
   const provEl = document.createElement("div");
