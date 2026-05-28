@@ -35,6 +35,8 @@ const MESSAGES = {
     errHttp: "⚠ HTTP {s} ×{n}",
     errGeneric: "⚠ Error",
     // Refresh
+    btnResetSource: "Clear vouchers from this source",
+    confirmResetSource: "Delete all stored coupons from \"{label}\"?",
     confirmRefresh: "Refresh \"{label}\" now?\nThis will delete and reload all stored coupons for this source.",
     refreshingTimer: "Loading… ({s}s)",
     refreshDone: "Done ✓",
@@ -109,6 +111,8 @@ const MESSAGES = {
     errHttp: "⚠ HTTP {s} ×{n}",
     errGeneric: "⚠ Fehler",
     // Refresh
+    btnResetSource: "Coupons dieser Quelle löschen",
+    confirmResetSource: "Alle gespeicherten Coupons von „{label}“ löschen?",
     confirmRefresh: "„{label}“ jetzt aktualisieren?\nDabei werden die gespeicherten Coupons dieser Quelle gelöscht und neu geladen.",
     refreshingTimer: "Lädt… ({s}s)",
     refreshDone: "Fertig ✓",

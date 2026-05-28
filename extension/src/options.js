@@ -123,6 +123,7 @@ function buildPredefinedItem(source) {
     </div>
     <div class="source-actions">
       <button class="btn-icon btn-refresh" title="${t("intervalSection")}" data-refresh="${source.id}"${needsUrl ? " disabled" : ""}>↻</button>
+      <button class="btn-icon btn-reset" title="${t("btnResetSource")}" data-reset-source="${source.id}">🗑</button>
     </div>
   `;
 
@@ -156,6 +157,8 @@ function buildPredefinedItem(source) {
     });
   });
 
+  item.querySelector("[data-reset-source]").addEventListener("click", () => resetSourceVouchers(source.id));
+
   return item;
 }
 
@@ -175,6 +178,7 @@ function buildCustomItem(source) {
     </div>
     <div class="source-actions">
       <button class="btn-icon btn-refresh" title="${t("intervalSection")}" data-refresh="${source.id}">↻</button>
+      <button class="btn-icon btn-reset" title="${t("btnResetSource")}" data-reset-source="${source.id}">🗑</button>
       <button class="btn-icon" title="${t("btnCancel")}" data-remove="${source.id}">✕</button>
     </div>
   `;
@@ -195,11 +199,25 @@ function buildCustomItem(source) {
     });
   });
 
+  item.querySelector("[data-reset-source]").addEventListener("click", () => resetSourceVouchers(source.id));
+
   item.querySelector("[data-remove]").addEventListener("click", async () => {
     await removeSource(source.id);
   });
 
   return item;
+}
+
+async function resetSourceVouchers(id) {
+  const { sources } = await chrome.storage.sync.get("sources");
+  const source = sources?.find((s) => s.id === id);
+  if (!source?.url) return;
+  if (!confirm(t("confirmResetSource", { label: source.label ?? source.url }))) return;
+  const { vouchers } = await chrome.storage.local.get("vouchers");
+  const kept = (vouchers ?? []).filter((v) => v.sourceUrl !== source.url);
+  await chrome.storage.local.set({ vouchers: kept });
+  renderVoucherList();
+  setStatus(t("cleared"));
 }
 
 async function updateSource(id, patch) {
