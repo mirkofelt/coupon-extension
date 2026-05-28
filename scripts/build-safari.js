@@ -1,6 +1,7 @@
 import * as esbuild from "esbuild";
 import * as fs from "fs";
 import * as path from "path";
+import { spawnSync } from "child_process";
 
 const OUT_DIR = "dist/safari-extension";
 const JS_OUT_DIR = path.join(OUT_DIR, "dist");
@@ -68,6 +69,37 @@ if (isWatch) {
 } else {
   await esbuild.build(cfg);
   console.log(`Safari extension assembled → ${OUT_DIR}/`);
-  console.log("To wrap for App Store distribution, run on macOS:");
-  console.log(`  xcrun safari-web-extension-converter ${OUT_DIR} --project-location safari-xcode --app-name CouponAlert`);
+  runXcrun();
+}
+
+function runXcrun() {
+  if (process.platform !== "darwin") {
+    console.log("Skipping xcrun (not on macOS). To convert on macOS, run:");
+    console.log(`  xcrun safari-web-extension-converter ${OUT_DIR} --project-location safari-xcode --app-name CouponAlert`);
+    return;
+  }
+
+  const xcrunCheck = spawnSync("xcrun", ["--find", "safari-web-extension-converter"], { encoding: "utf8" });
+  if (xcrunCheck.status !== 0) {
+    console.warn("xcrun safari-web-extension-converter not found.");
+    console.warn("Install Xcode from the Mac App Store and run: sudo xcode-select -s /Applications/Xcode.app/Contents/Developer");
+    process.exit(1);
+  }
+
+  console.log("Running xcrun safari-web-extension-converter…");
+  const result = spawnSync(
+    "xcrun",
+    [
+      "safari-web-extension-converter",
+      OUT_DIR,
+      "--project-location", "safari-xcode",
+      "--app-name", "CouponAlert",
+      "--no-prompt",
+    ],
+    { stdio: "inherit" }
+  );
+  if (result.status !== 0) {
+    process.exit(result.status ?? 1);
+  }
+  console.log("Xcode project generated in safari-xcode/. Open it in Xcode, build, and run.");
 }

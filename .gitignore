@@ -2,3 +2,5 @@
 *.local
 node_modules/
 extension/dist/
+dist/
+safari-xcode/

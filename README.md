@@ -51,14 +51,15 @@ If the converter crashes with a plug-in or CoreSimulator error, complete the Xco
 sudo xcodebuild -runFirstLaunch
 ```
 
-Then build the extension and convert once:
+Then build the extension and generate the Xcode project in one step:
 
 ```bash
-npm install && npm run build
-xcrun safari-web-extension-converter extension/ --project-location ~/Desktop
+npm install && npm run build:safari
 ```
 
-Open the generated Xcode project, build and run it, then enable the extension in Safari Settings → Extensions.
+`npm run build:safari` compiles the extension and automatically runs `xcrun safari-web-extension-converter` to generate the Xcode project in `safari-xcode/`.
+
+Open `safari-xcode/CouponAlert.xcodeproj`, build and run it, then enable the extension in Safari Settings → Extensions.
 
 ## Configuration
 
