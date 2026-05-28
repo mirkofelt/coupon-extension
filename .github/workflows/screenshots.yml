@@ -2,7 +2,7 @@ name: Update Screenshots
 
 on:
   push:
-    branches: [master]
+    branches: [develop]
     paths:
       - "extension/**"
       - "scripts/screenshot.js"
