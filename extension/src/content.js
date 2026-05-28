@@ -190,11 +190,16 @@
 
     const vouchers = [];
     const total = offers.length;
-    const BATCH = 3;
+    const BATCH = 2;
+    const BATCH_DELAY = 2000;
+    const AVG_MS_PER_OFFER = 1200;
 
     for (let i = resumeFrom; i < offers.length; i += BATCH) {
-      if (i > resumeFrom) await sleep(400);
-      setBanner(`Lade Details… (${Math.min(i + BATCH, total)}/${total})`);
+      if (i > resumeFrom) await sleep(BATCH_DELAY);
+      const remaining = offers.length - i;
+      const estMs = Math.ceil(remaining / BATCH) * (BATCH_DELAY + BATCH * AVG_MS_PER_OFFER);
+      const timeStr = estMs >= 60000 ? `~${Math.ceil(estMs / 60000)} min` : `~${Math.ceil(estMs / 1000)} s`;
+      setBanner(`Lade Details… (${Math.min(i + BATCH, total)}/${total}) — noch ${timeStr}`);
 
       const results = await Promise.all(
         offers.slice(i, i + BATCH).map(async (offer) => {

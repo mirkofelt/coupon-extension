@@ -63,10 +63,8 @@ async function backgroundRefreshAll() {
   const intervalMs = (refreshIntervalHours ?? 24) * 60 * 60 * 1000;
   const now = Date.now();
 
-  for (const source of sources.filter((s) => s.enabled)) {
-    if (source.lastRefreshed && now - source.lastRefreshed < intervalMs) continue;
-    await refreshSource(source);
-  }
+  const stale = sources.filter((s) => s.enabled && (!s.lastRefreshed || now - s.lastRefreshed >= intervalMs));
+  await Promise.all(stale.map((source) => refreshSource(source)));
 }
 
 async function refreshSource(source) {
@@ -208,9 +206,10 @@ async function scrapeMao(sourceUrl) {
   }
 
   const vouchers = [];
-  const BATCH = 3;
+  const BATCH = 2;
+  const BATCH_DELAY = 2000;
   for (let i = 0; i < offers.length; i += BATCH) {
-    if (i > 0) await sleep(400);
+    if (i > 0) await sleep(BATCH_DELAY);
     const results = await Promise.all(
       offers.slice(i, i + BATCH).map(async (offer) => {
         const doc = await fetchDoc(origin + offer.offerPath);
