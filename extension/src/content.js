@@ -198,28 +198,32 @@
 
       const results = await Promise.all(
         offers.slice(i, i + BATCH).map(async (offer) => {
-          const doc = await fetchDoc(offer.offerPath);
-          if (!doc) return null;
+          try {
+            const doc = await fetchDoc(offer.offerPath);
+            if (!doc) return null;
 
-          const { providerUrl, code, conditions } = await processDetailDoc(doc);
-          let providerDomain = null;
-          if (providerUrl) {
-            try { providerDomain = new URL(providerUrl).hostname.replace(/^www\./, ""); } catch {}
+            const { providerUrl, code, conditions } = await processDetailDoc(doc);
+            let providerDomain = null;
+            if (providerUrl) {
+              try { providerDomain = new URL(providerUrl).hostname.replace(/^www\./, ""); } catch {}
+            }
+
+            const discounts = [];
+            if (offer.discountText) {
+              discounts.push({ text: offer.discountText, code: code ?? null, conditions: conditions ?? null });
+            } else if (code) {
+              discounts.push({ text: "Gutschein", code, conditions });
+            }
+
+            if (discounts.length === 0 && !providerDomain) return null;
+
+            return {
+              provider: offer.provider, providerUrl, providerDomain,
+              offerUrl: location.origin + offer.offerPath, discounts, extractedAt: Date.now(),
+            };
+          } catch {
+            return null;
           }
-
-          const discounts = [];
-          if (offer.discountText) {
-            discounts.push({ text: offer.discountText, code: code ?? null, conditions: conditions ?? null });
-          } else if (code) {
-            discounts.push({ text: "Gutschein", code, conditions });
-          }
-
-          if (discounts.length === 0 && !providerDomain) return null;
-
-          return {
-            provider: offer.provider, providerUrl, providerDomain,
-            offerUrl: location.origin + offer.offerPath, discounts, extractedAt: Date.now(),
-          };
         })
       );
 
@@ -230,7 +234,7 @@
         const { vouchers: stored } = await chrome.storage.local.get("vouchers");
         const others = (stored ?? []).filter((v) => v.sourceUrl !== sourceUrl);
         await chrome.storage.local.set({ vouchers: [...others, ...vouchers.map((v) => ({ ...v, sourceUrl }))] });
-        chrome.runtime.sendMessage({ type: "VOUCHERS_UPDATED", count: vouchers.length });
+        chrome.runtime.sendMessage({ type: "VOUCHERS_UPDATED", count: vouchers.length }).catch(() => {});
       }
 
       await chrome.storage.local.set({
