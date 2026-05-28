@@ -5,14 +5,48 @@ let voucherData = [];
 let currentPage = 1;
 let searchQuery = "";
 
+const PREDEFINED_SOURCES = [
+  {
+    id: "adac_vorteilswelt",
+    url: "https://www.adac.de/mitgliedschaft/vorteilswelt/vorteilssuche/",
+    label: "ADAC Vorteilswelt",
+    type: "adac",
+    predefined: true,
+    enabled: false,
+  },
+  {
+    id: "corporate_benefits",
+    url: "",
+    label: "Corporate Benefits",
+    type: "mao",
+    predefined: true,
+    requiresUrl: true,
+    enabled: false,
+  },
+];
+
+async function ensurePredefinedSources(existing) {
+  const merged = [
+    ...PREDEFINED_SOURCES.map((def) => {
+      const saved = existing.find((s) => s.id === def.id);
+      return saved ? { ...def, ...saved } : def;
+    }),
+    ...existing.filter((s) => !PREDEFINED_SOURCES.some((d) => d.id === s.id)),
+  ];
+  const changed = JSON.stringify(merged) !== JSON.stringify(existing);
+  if (changed) await chrome.storage.sync.set({ sources: merged });
+  return merged;
+}
+
 async function load() {
   translatePage();
   document.title = t("optionsTitle");
   document.getElementById("ext-version").textContent = `v${chrome.runtime.getManifest().version}`;
-  const { sources, refreshIntervalHours, blockedKeywords } = await chrome.storage.sync.get(["sources", "refreshIntervalHours", "blockedKeywords"]);
+  const { sources: raw, refreshIntervalHours, blockedKeywords } = await chrome.storage.sync.get(["sources", "refreshIntervalHours", "blockedKeywords"]);
+  const sources = await ensurePredefinedSources(raw ?? []);
   document.getElementById("interval-hours").value = refreshIntervalHours ?? 24;
   document.getElementById("blocked-keywords").value = (blockedKeywords ?? []).join("\n");
-  renderSources(sources ?? []);
+  renderSources(sources);
   renderVoucherList();
 }
 
